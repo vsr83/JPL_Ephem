@@ -3,7 +3,7 @@ function [A_rel, A_newt] = acc_pointmass(R, V, mu)
 % acceleration.
 %
 % This routine computes the relativistic and Newtonian parts of the
-% acceleration for arbitrary number of point-masses. The total
+% acceleration for an arbitrary number of point-masses. The total
 % accelerations are obtained as the sum of the two matrices. The
 % computation is based on the equation (1) in [1] and (8.1) in [2].
 %
@@ -25,7 +25,7 @@ function [A_rel, A_newt] = acc_pointmass(R, V, mu)
 %
 % REFERENCES: 
 %  [1] Newhall, Standish, Williams - DE 102: a numerically integrated
-%  ephemeris of the Moon and planets spanning fort-four centuries,
+%  ephemeris of the Moon and planets spanning forty-four centuries,
 %  Astronomy and Astrophysics, 125, 150-167, 1983.
 %  [2] Urban, Seidelmann - Explanatory Supplement to the Astronomical
 %  Almanac, 3rd edition, University Science Books, 2013.
@@ -55,7 +55,7 @@ c = 173.144632720536344565;
 c2 = c * c;
 
 % For numerical accuracy, it is very important to compute the relativistic 
-% accceleration separately. Otherwise, one has to do large amount of 
+% acceleration separately. Otherwise, one has to do large amount of 
 % floating computations that involve adding small numbers to larger ones.
 
 % Compute the Newtonian accelerations first.
@@ -93,7 +93,7 @@ for ind_target = 1:num_targets
                    * r_target_source;
 
         % The first part of the acceleration formula involves
-        % multiplication of the Newtonian acceleration with an expression.
+        % multiplication of the Newtonian acceleration.
         newton_mult = 0;
         for ind_target2 = 1:num_targets
             if ind_target ~= ind_target2
@@ -114,6 +114,7 @@ for ind_target = 1:num_targets
                     - (1.5/c2) * (dot(r_target_source, V(ind_source, :)) / Rij(ind_source, ind_target))^2 ...
                     + (0.5/c2) * dot(r_target_source, A_newt(ind_source, :));
 
+        % Add the Newtonian part and the remaining terms.
         acc_target = acc_target ...
                    + newton_mult * acc_newton ...
                    + (1/c2) * mu(ind_source) / Rij3(ind_source, ind_target) ...
@@ -121,6 +122,6 @@ for ind_target = 1:num_targets
                    + (3.5/c2) * mu(ind_source) * A_newt(ind_source, :) ...
                    / Rij(ind_source, ind_target);
     end
-    
+
     A_rel(ind_target, :) = acc_target;
 end
