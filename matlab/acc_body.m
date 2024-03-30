@@ -1,14 +1,15 @@
-function acc_point = acc_body(r_point, a, mu, Jn, CSnm)
-% ACC_BODY - Compute the acceleration due to zonal and tesseral harmonics
-% from an extended body.
+function [acc_point, T_body] = acc_body(r_point, a, mu, Jn, CSnm)
+% ACC_BODY - Compute the acceleration and torque due to zonal and tesseral 
+% harmonics from an extended body.
 %
 % Important: This method has not been implemented for performance but for 
-% simplicity. 
+% simplicity and helping with an implementation. 
 %
 % INPUTS:
 %   r_point    The position of the point-mass w.r.t. the body center 
 %              in body coordinates (au, 3 x 1)
-%   mu         Standard gravitational parameter (au^3/d^2)
+%   mu         Standard gravitational parameter (au^3/d^2) or 1 if
+%              the results are multiplied with -mu afterwards.
 %   a          The equatorial radius of the extended body (au).
 %   Jn         Zonal harmonics for the extended body starting from n = 2 
 %              (num_harmonics x 1).
@@ -18,6 +19,8 @@ function acc_point = acc_body(r_point, a, mu, Jn, CSnm)
 % OUTPUTS:
 %   acc_point  The acceleration of the point mass in body coordinates 
 %              (au/d^2, num_targets x 3).
+%   T_body     Torque per unit mass on the body in body coordinates 
+%              (au^2/d^2, 3 x 1). If mu is set to 1
 %
 % REFERENCES: 
 %  [1] Newhall, Standish, Williams - DE 102: a numerically integrated
@@ -91,3 +94,6 @@ acc_point = acc_point + acc_point_tesseral;
 
 % Rotate back to the body coordinates.
 acc_point = matrix_rot3(-lon_point) * matrix_rot2(lat_point) * acc_point;
+
+% Torque per unit mass is r x acc_point.
+T_body = cross(r_point, acc_point);

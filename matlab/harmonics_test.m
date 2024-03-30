@@ -3,6 +3,13 @@
 
 au = 149597870.691;
 
+% Standard gravitational parameters of the Moon, the Earth and the
+% Earth-Moon barycenter.
+mu_moon  = 1.09318924524284471369E-11;
+mu_earth = 8.88769273403302327042E-10;
+mu_EMB   = 8.99701165855730774179E-10;
+mu_sun   = 2.95912208285591102582E-4;
+
 % Zonal harmonics J_2, J_3 and J_4 in Earth's potential.
 Je = [1.08263e-3; -2.54e-6; -1.61e-6];
 
@@ -47,24 +54,38 @@ r_body_moon_sun = [
 % Equatorial radius of the Moon (km).
 a_moon = 1.737999999832521e+03;
 mu = 1;
-a_2 = acc_body(r_body_moon_sun, a_moon/au, -mu, Jm, CSnm);
+[a_2, T_2_tmp] = acc_body(r_body_moon_sun, a_moon/au, -mu, Jm, CSnm);
+[a_2_tmp, T_2] = acc_body(r_body_moon_sun, a_moon/au, mu_sun, Jm, CSnm);
 a_2_exp = [
     -0.0000000000000473892866153501820441870181; ...
     -0.0000000000000318149662536360739254924260; ...
     -0.0000000000000038287252192564183969255991 ...
 ];
+T_2_exp = [
+    0.00000000000000000017841352240824247936569483184800; ...
+    -0.00000000000000000068916570497585793857998521715690; ...
+    0.00000000000000000351837578465033507196601374394710    
+];
 
 rel_error_2 = norm(a_2_exp - a_2) / norm(a_2_exp)
+rel_error_T_2 = norm(T_2_exp - T_2) / norm(T_2_exp)
 
 r_body_moon_earth = [
     0.00239026490334162461; ...
     -0.00017227335425532372; ...
     0.00026607374895177280 ...
 ];
-a_3 = acc_body(r_body_moon_earth, a_moon/au, -mu, Jm, CSnm);
+[a_3, T_3_tmp] = acc_body(r_body_moon_earth, a_moon/au, -mu, Jm, CSnm);
+[a_3_tmp, T_3] = acc_body(r_body_moon_earth, a_moon/au, mu_earth, Jm, CSnm);
 a_3_exp = [
     -0.00189164806069694151; ...
     0.00021261987821214140; ...
     -0.00053425131651080283
 ];
+T_3_exp = [
+    -0.00000000000000003151993406229299619409900528595530; ...
+    -0.00000000000000068762681556832643271715166647120141; ...
+    -0.00000000000000016205576844387141966324703678876162
+];
 rel_error_3 = norm(a_3_exp - a_3) / norm(a_3_exp)
+rel_error_T_3 = norm(T_3_exp - T_3) / norm(T_3_exp)
