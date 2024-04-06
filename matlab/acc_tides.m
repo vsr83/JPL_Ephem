@@ -1,9 +1,6 @@
 function acc_point = acc_tides(r_me_tod, mu_e, mu_m)
 % ACC_TIDES - Compute the acceleration 
 %
-% This method computes the expression in equation (2) of [1] or (8.3) in
-% [2] and transforms the acceleration to body coordinates.
-%
 % Important: This method has not been implemented for performance but for 
 % simplicity and helping with an implementation. 
 %
@@ -14,8 +11,10 @@ function acc_point = acc_tides(r_me_tod, mu_e, mu_m)
 %   mu_m       Standard gravitational parameter (au^3/d^2) for Moon.
 %
 % OUTPUTS:
-%   acc_point  The acceleration of the point mass in body coordinates 
-%              (au/d^2, num_targets x 3).
+%   acc_moon   The acceleration of the Moon in True-of-date frame 
+%              (au/d^2, 3 x 1).
+%   acc_earth  The acceleration of the Earth in True-of-date frame 
+%              (au/d^2, 3 x 1).
 %
 % REFERENCES: 
 %  [1] Newhall, Standish, Williams - DE 102: a numerically integrated
@@ -39,7 +38,8 @@ r_em = norm(r_me_tod);
 % Angle between the bulge and the Earth-Moon line. 0.04635 rad in [1].
 phase = 4.0700012e-2;
 
-acc_point = -(3 * love * mu_m) * (1 + mu_m/mu_e) * (a^5 / r_em^8) * ...
+acc_moon = -(3 * love * mu_m) * (1 + mu_m/mu_e) * (a^5 / r_em^8) * ...
     [r_me_tod(1) + phase * r_me_tod(2) ; ...
      r_me_tod(2) - phase * r_me_tod(1) ; ...
      r_me_tod(3)];
+acc_earth = -(mu_m / mu_e) * acc_moon;
