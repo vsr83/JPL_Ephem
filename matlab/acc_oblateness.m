@@ -30,6 +30,12 @@ function [A, acc_moon] = acc_oblateness(OSV, MU, lib_moon, JT, Je, Jm, CSnm, use
 %  The orbit state vectors have the format [x; y; z; v_x; v_y; v_z] in the
 %  DE118/J2000 frame with barycentric origin and units (au, au/d).
 %
+%  Important: It seems that the implementation in [2] does not compute the
+%  precession matrix correctly leading to a relative error of 0.0167% in
+%  the accelerations. See oblateness_verification.txt for comparisons. The
+%  libration angles and all accelerations not related to oblateness of the
+%  Earth nor tides seem to match well.
+%
 % OUTPUTS:
 %   A          6x3 matrix [acc_sun, acc_earth, acc_moon], where
 %     acc_sun    The acceleration of the Sun due to figure effects.
@@ -71,8 +77,10 @@ psi1   = lib_moon(6);
 matrix_body = matrix_to_body(phi, theta, psi);
 
 % Precession matrix for the transformation from J2000 to MoD coordinates. 
-% DE118 TBD.
 matrix_precession = matrix_j2000_mod(JT);
+if use_de118
+    matrix_precession = matrix_de118_j2000 * matrix_precession;
+end
 
 % Nutation matrix for the transformation from MoD to ToD coordinates.
 matrix_nutation = matrix_mod_tod(JT);
@@ -120,12 +128,10 @@ acc_moon = [phi2; theta2; psi2];
 % 4. Oblateness of the Earth.
 
 % The position of the Moon w.r.t. Earth body center in DE118/J2000.
-%r_me_j2000 = r_m - r_e;
-r_me_j2000 = matrix_de118_j2000 * (r_m - r_e);
+r_me_j2000 = r_m - r_e;
 
 % The position of the Sun w.r.t. Earth body center in DE118/J2000.
-%r_se_j2000 = r_s - r_e;
-r_se_j2000 = matrix_de118_j2000 * (r_s - r_e);
+r_se_j2000 = r_s - r_e;
 
 % Transform the relative position of the Moon to the True-of-Date frame.
 r_me_mod = matrix_precession * r_me_j2000;
@@ -147,8 +153,7 @@ acc_es_tod = mu_s * acc_se_tod_tmp;
 [acc_me_tod_tides, acc_em_tod_tides] = acc_tides(r_me_tod, mu_e, mu_m);
 
 % Convert accelerations from Earth oblateness and tides to J2000 frame.
-%matrix_tod_j2000 = matrix_precession' * matrix_nutation';
-matrix_tod_j2000 = matrix_de118_j2000' * matrix_precession' * matrix_nutation';
+matrix_tod_j2000 =  matrix_precession' * matrix_nutation';
 acc_me_j2000_obl = matrix_tod_j2000 * acc_me_tod;
 acc_se_j2000_obl = matrix_tod_j2000 * acc_se_tod;
 acc_em_j2000_obl = matrix_tod_j2000 * acc_em_tod;

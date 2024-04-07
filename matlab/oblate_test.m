@@ -109,7 +109,7 @@ CSnm = [
     4, 4, -1.5490389313e-7,   5.6404155572e-8
 ];
 
-[A, acc_moon] = acc_oblateness(OSV, MU, lib_de118, JT, Je, Jm, CSnm);
+[A, acc_moon] = acc_oblateness(OSV, MU, lib_de118, JT, Je, Jm, CSnm, true);
 acc_moon_exp = [
     -0.0000023384010620278315597077908177814365,
     0.0000037610687028952677129697845792577482,
