@@ -1,4 +1,4 @@
-function [A, acc_moon] = acc_oblateness(OSV, MU, lib_moon, JT, Je, Jm, CSnm)
+function [A, acc_moon] = acc_oblateness(OSV, MU, lib_moon, JT, Je, Jm, CSnm, use_de118)
 % ACC_OBLATENESS - Compute the accelerations due to Earth and Moon figure 
 %                  and tides.
 % 
@@ -24,6 +24,8 @@ function [A, acc_moon] = acc_oblateness(OSV, MU, lib_moon, JT, Je, Jm, CSnm)
 %              n = 2 (num_harmonics x 1).
 %   CSnm       Tesseral harmonics in the (n, m, C_nm, Snm) row format 
 %              (num_harmonics x 4).
+%   use_de118  Flag to indicate whether to use DE118 frame instead of J2000
+%              for the computations.
 %
 %  The orbit state vectors have the format [x; y; z; v_x; v_y; v_z] in the
 %  DE118/J2000 frame with barycentric origin and units (au, au/d).
@@ -92,35 +94,38 @@ r_em_body = matrix_body * r_em_j2000;
 [acc_em_body_tmp, T_earth] = acc_body(r_em_body, a_moon, 1, Jm, CSnm);
 
 % 1. Accelerations from the interaction between the Moon figure and Earth.
-acc_em_body  = -mu_m * acc_em_body_tmp;
-acc_em_j2000 = matrix_body' * acc_em_body;
-acc_me_body  = mu_e * acc_em_body_tmp;
-acc_me_j2000 = matrix_body' * acc_me_body;
+acc_em_body      = -mu_m * acc_em_body_tmp;
+acc_em_j2000_fig = matrix_body' * acc_em_body;
+acc_me_body      = mu_e * acc_em_body_tmp;
+acc_me_j2000_fig = matrix_body' * acc_me_body;
 
 r_sm_j2000 = r_s - r_m;
 r_sm_body  = matrix_body * r_sm_j2000;
 [acc_sm_body_tmp, T_sun] = acc_body(r_sm_body, a_moon, 1, Jm, CSnm);
 
 % 2. Accelerations from the interaction between the Moon figure and Sun.
-acc_sm_body  = -mu_m * acc_sm_body_tmp;
-acc_sm_j2000 = matrix_body' * acc_sm_body;
-acc_ms_body  = mu_s * acc_sm_body_tmp;
-acc_ms_j2000 = matrix_body' * acc_ms_body;
+acc_sm_body      = -mu_m * acc_sm_body_tmp;
+acc_sm_j2000_fig = matrix_body' * acc_sm_body
+acc_ms_body      = mu_s * acc_sm_body_tmp;
+acc_ms_j2000_fig = matrix_body' * acc_ms_body
 
 % 3. Libration of the Moon.
 
 % Compute the total torque on the Moon and the angular accelerations.
-T = -mu_e * T_earth - mu_s * T_sun;
+T = mu_e * T_earth + mu_s * T_sun;
+
 [phi2, theta2, psi2] = libration_moon(phi, theta, psi, phi1, theta1, psi1, T);
 acc_moon = [phi2; theta2; psi2];
 
 % 4. Oblateness of the Earth.
 
 % The position of the Moon w.r.t. Earth body center in DE118/J2000.
-r_me_j2000 = r_m - r_e;
+%r_me_j2000 = r_m - r_e;
+r_me_j2000 = matrix_de118_j2000 * (r_m - r_e);
 
 % The position of the Sun w.r.t. Earth body center in DE118/J2000.
-r_se_j2000 = r_s - r_e;
+%r_se_j2000 = r_s - r_e;
+r_se_j2000 = matrix_de118_j2000 * (r_s - r_e);
 
 % Transform the relative position of the Moon to the True-of-Date frame.
 r_me_mod = matrix_precession * r_me_j2000;
@@ -142,17 +147,40 @@ acc_es_tod = mu_s * acc_se_tod_tmp;
 [acc_me_tod_tides, acc_em_tod_tides] = acc_tides(r_me_tod, mu_e, mu_m);
 
 % Convert accelerations from Earth oblateness and tides to J2000 frame.
-matrix_tod_j2000 = matrix_precession' * matrix_nutation';
-acc_me_j2000 = matrix_tod_j2000 * acc_me_tod;
-acc_se_j2000 = matrix_tod_j2000 * acc_se_tod;
-acc_em_j2000 = matrix_tod_j2000 * acc_em_tod;
-acc_es_j2000 = matrix_tod_j2000 * acc_es_tod;
+%matrix_tod_j2000 = matrix_precession' * matrix_nutation';
+matrix_tod_j2000 = matrix_de118_j2000' * matrix_precession' * matrix_nutation';
+acc_me_j2000_obl = matrix_tod_j2000 * acc_me_tod;
+acc_se_j2000_obl = matrix_tod_j2000 * acc_se_tod;
+acc_em_j2000_obl = matrix_tod_j2000 * acc_em_tod;
+acc_es_j2000_obl = matrix_tod_j2000 * acc_es_tod;
 acc_me_j2000_tides = matrix_tod_j2000 * acc_me_tod_tides;
 acc_em_j2000_tides = matrix_tod_j2000 * acc_em_tod_tides;
 
-acc_s_j2000 = acc_sm_j2000 + acc_se_j2000 ;
-acc_e_j2000 = acc_es_j2000 + acc_em_j2000 + acc_em_j2000_tides;
-acc_m_j2000 = acc_ms_j2000 + acc_me_j2000 + acc_me_j2000_tides;
+acc_s_j2000 = acc_sm_j2000_fig + acc_se_j2000_obl ;
+acc_e_j2000 = acc_es_j2000_obl + acc_em_j2000_fig + acc_em_j2000_obl + acc_em_j2000_tides;
+acc_m_j2000 = acc_ms_j2000_fig + acc_me_j2000_fig + acc_me_j2000_obl + acc_me_j2000_tides;
 
 % Assemble outputs to an acceleration matrix.
 A = [acc_s_j2000, acc_e_j2000, acc_m_j2000];
+
+
+disp('Moon Figure <-> Earth : Earth Acceleration');
+disp(acc_em_j2000_fig');
+disp('Moon Figure <-> Earth : Moon Acceleration');
+disp(acc_me_j2000_fig');
+disp('Moon Figure <-> Sun : Sun Acceleration');
+disp(acc_sm_j2000_fig');
+disp('Moon Figure <-> Sun : Moon Acceleration');
+disp(acc_ms_j2000_fig');
+disp('Earth Oblateness <-> Moon : Earth Acceleration');
+disp(acc_em_j2000_obl');
+disp('Earth Oblateness <-> Moon : Moon Acceleration');
+disp(acc_me_j2000_obl');
+disp('Earth Oblateness <-> Sun : Earth Acceleration');
+disp(acc_es_j2000_obl');
+disp('Earth Oblateness <-> Sun : Sun Acceleration');
+disp(acc_se_j2000_obl');
+disp('Earth Tides <-> Moon : Earth Acceleration');
+disp(acc_em_j2000_tides');
+disp('Earth Tides <-> Moon : Moon Acceleration');
+disp(acc_me_j2000_tides');
