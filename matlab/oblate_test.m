@@ -69,18 +69,6 @@ psi    =  1.2812043655548916998299091574153862893581;
 
 JT = 2440400.50;
 
-JDEPOCH = 2440400.5;
-PSLPI  = 27.32158222801637949485;
-PSLPIA = 27.3215820789337158203125;
-PSLPIB = 1.490826636745416323896386e-7;
-b = JT - JDEPOCH;
-f = floor(b / PSLPI);
-a = b - f * PSLPIA;
-b = a - f * PSLPIB;
-PSLP1 = 2.29971502189818919e-1;
-psi1 = psi1 + PSLP1;
-psi = psi + PSLP1 * b;
-
 lib_de118 = [phi; phi1; theta; theta1; psi; psi1];
 
 OSV = [osv_sun_de118, osv_earth_de118, osv_moon_de118];
@@ -115,7 +103,7 @@ acc_moon_exp = [
     0.0000037610687028952677129697845792577482,
     -0.0000008363660718855350474442529248864098];
 
-rel_error_sun = norm(A(:, 1) - sun_acc_exp) / norm(sun_acc_exp)
-rel_error_earth = norm(A(:, 2) - earth_acc_exp) / norm(earth_acc_exp)
-rel_error_moon = norm(A(:, 3) - moon_acc_exp) / norm(moon_acc_exp)
+rel_error_sun       = norm(A(:, 1) - sun_acc_exp) / norm(sun_acc_exp)
+rel_error_earth     = norm(A(:, 2) - earth_acc_exp) / norm(earth_acc_exp)
+rel_error_moon      = norm(A(:, 3) - moon_acc_exp) / norm(moon_acc_exp)
 rel_error_libration = norm(acc_moon - acc_moon_exp) / norm(acc_moon_exp)

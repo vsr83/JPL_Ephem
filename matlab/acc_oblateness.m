@@ -16,7 +16,8 @@ function [A, acc_moon] = acc_oblateness(OSV, MU, lib_moon, JT, Je, Jm, CSnm, use
 %   MU         1x3 vector [mu_sun, mu_earth, mu_moon] with standard 
 %              gravitational parameters (au^3/d^2).
 %   lib_moon   The libration state of the moon [phi; phi1; theta; theta1; 
-%              psi; psi1] (rad, rad/d).
+%              psi; psi1] (rad, rad/d), where psi and psi1 do not include
+%              the mean rotation.
 %   JT         Julian time.
 %   Je         Zonal harmonics for the extended body of Earth starting 
 %              from n = 2 (num_harmonics_earth x 1).
@@ -72,6 +73,22 @@ theta  = lib_moon(3);
 theta1 = lib_moon(4);
 psi    = lib_moon(5);
 psi1   = lib_moon(6);
+
+% The libration angles do not include the mean rotation of the Moon.
+if use_de118
+    % 1969-Jun-28 00:00:00
+    JD_epoch = 2440400.5;
+else
+    % 2000-Jan-01 12:00:00
+    JD_epoch = 2451545.0;
+end
+% Mean rotation period of the Moon.
+mean_period_moon  = 27.32158222801637949485;
+angular_speed_moon = 2 * pi / mean_period_moon;
+total_rots_moon = floor((JT - JD_epoch) / mean_period_moon);
+days_after_full = JT - JD_epoch - mean_period_moon * total_rots_moon;
+psi1 = psi1 + angular_speed_moon;
+psi = psi + angular_speed_moon * days_after_full;
 
 % Matrix from DE118/J2000 coordinates to body coordinates.
 matrix_body = matrix_to_body(phi, theta, psi);
