@@ -75,36 +75,42 @@ matrix_precession = matrix_j2000_mod(JT);
 % Nutation matrix for the transformation from MoD to ToD coordinates.
 matrix_nutation = matrix_mod_tod(JT);
 
-% Equatorial radius of the Moon (km).
-a_moon = 1.737999999832521e+03;
+% Astronomical unit (km).
+au = 149597870.691;
+
+% Equatorial radius of the Moon (au).
+a_moon = 1.737999999832521e+03 / au;
+
+% Equatorial radius of the Earth (au).
+a_earth = 6378.14 / au;
 
 % The position of the Earth w.r.t. Moon body center in DE118/J2000 and 
 % body coordinates.
 r_em_j2000 = r_e - r_m;
 r_em_body = matrix_body * r_em_j2000;
 % Acceleration/mu and
-[acc_em_body_tmp, T_earth] = acc_body(r_em_body, 1, a_moon, Jm, CSnm);
+[acc_em_body_tmp, T_earth] = acc_body(r_em_body, a_moon, 1, Jm, CSnm);
 
 % 1. Accelerations from the interaction between the Moon figure and Earth.
-acc_em_body_tmp  = -mu_moon * acc_em_body_tmp;
+acc_em_body  = -mu_m * acc_em_body_tmp;
 acc_em_j2000 = matrix_body' * acc_em_body;
-acc_me_body  = mu_earth * acc_em_body_tmp;
+acc_me_body  = mu_e * acc_em_body_tmp;
 acc_me_j2000 = matrix_body' * acc_me_body;
 
-r_sm_j2000 = r_sun - r_moon;
+r_sm_j2000 = r_s - r_m;
 r_sm_body  = matrix_body * r_sm_j2000;
-[acc_sm_body_tmp, T_sun] = acc_body(r_sm_body, 1, a_moon, Jm, CSnm);
+[acc_sm_body_tmp, T_sun] = acc_body(r_sm_body, a_moon, 1, Jm, CSnm);
 
 % 2. Accelerations from the interaction between the Moon figure and Sun.
-acc_sm_body  = -mu_moon * acc_sm_body_tmp;
+acc_sm_body  = -mu_m * acc_sm_body_tmp;
 acc_sm_j2000 = matrix_body' * acc_sm_body;
-acc_ms_body  = mu_sun * acc_sm_body_tmp;
+acc_ms_body  = mu_s * acc_sm_body_tmp;
 acc_ms_j2000 = matrix_body' * acc_ms_body;
 
 % 3. Libration of the Moon.
 
 % Compute the total torque on the Moon and the angular accelerations.
-T = T_earth + T_sun;
+T = -mu_e * T_earth - mu_s * T_sun;
 [phi2, theta2, psi2] = libration_moon(phi, theta, psi, phi1, theta1, psi1, T);
 acc_moon = [phi2; theta2; psi2];
 
@@ -124,13 +130,13 @@ r_me_tod = matrix_nutation * r_me_mod;
 r_se_mod = matrix_precession * r_se_j2000;
 r_se_tod = matrix_nutation * r_se_mod;
 
-[acc_me_tod_tmp, T_sun] = acc_body(r_me_tod, 1, a_moon, Je, []);
-[acc_se_tod_tmp, T_sun] = acc_body(r_se_tod, 1, a_moon, Je, []);
+[acc_me_tod_tmp, T_sun] = acc_body(r_me_tod, a_earth, 1, Je, []);
+[acc_se_tod_tmp, T_sun] = acc_body(r_se_tod, a_earth, 1, Je, []);
 
-acc_me_tod = -mu_earth * acc_me_tod_tmp;
-acc_se_tod = -mu_earth * acc_se_tod_tmp;
-acc_em_tod = mu_moon * acc_me_tod_tmp;
-acc_es_tod = mu_sun * acc_se_tod_tmp;
+acc_me_tod = -mu_e * acc_me_tod_tmp;
+acc_se_tod = -mu_e * acc_se_tod_tmp;
+acc_em_tod = mu_m * acc_me_tod_tmp;
+acc_es_tod = mu_s * acc_se_tod_tmp;
 
 % 5. Accelerations from the interaction between Earth tides and the Moon.
 [acc_me_tod_tides, acc_em_tod_tides] = acc_tides(r_me_tod, mu_e, mu_m);

@@ -2,6 +2,9 @@ function [acc_point, T_body] = acc_body(r_point, a, mu, Jn, CSnm)
 % ACC_BODY - Compute the acceleration and torque due to zonal and tesseral 
 % harmonics from an extended body.
 %
+% This method computes the expression in equation (2) of [1] or (8.3) in
+% [2] and transforms the acceleration to body coordinates.
+%
 % Important: This method has not been implemented for performance but for 
 % simplicity and helping with an implementation. 
 %
