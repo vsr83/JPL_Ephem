@@ -1,4 +1,11 @@
 function y = osv_to_dof(R, V);
+% OSV_TO_DOF - Transform OSVs into degrees of freedom for n point masses.
+%   
+% INPUTS: 
+%   R          The position of each point-mass (au, num_targets x 3)
+%   V          The velocity of each point-mass (au/d, num_targets x 3)
+% OUTPUTS:
+%   y          Degrees of freedom (num_targets * 6 x 1).
 
 [num_targets, tmp] = size(R);
 num_equations = num_targets * 6;

@@ -1,4 +1,4 @@
-function M = matrix_rot2(angled)
+function M = matrix_rot2d(angled)
 % MATRIX_ROT2 - Compute matrix for rotation w.r.t. second coordinate axis in
 % clockwise direction.
 %
