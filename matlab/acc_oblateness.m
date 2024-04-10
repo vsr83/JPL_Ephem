@@ -99,6 +99,8 @@ if use_de118
     matrix_precession = matrix_de118_j2000 * matrix_precession;
 end
 
+
+
 % Nutation matrix for the transformation from MoD to ToD coordinates.
 matrix_nutation = matrix_mod_tod(JT);
 
@@ -106,10 +108,10 @@ matrix_nutation = matrix_mod_tod(JT);
 au = 149597870.691;
 
 % Equatorial radius of the Moon (au).
-a_moon = 1.737999999832521e+03 / au;
+a_moon = 1738 / au;
 
 % Equatorial radius of the Earth (au).
-a_earth = 6378.14 / au;
+a_earth = 6378.137 / au;
 
 % The position of the Earth w.r.t. Moon body center in DE118/J2000 and 
 % body coordinates.
@@ -130,9 +132,9 @@ r_sm_body  = matrix_body * r_sm_j2000;
 
 % 2. Accelerations from the interaction between the Moon figure and Sun.
 acc_sm_body      = -mu_m * acc_sm_body_tmp;
-acc_sm_j2000_fig = matrix_body' * acc_sm_body
+acc_sm_j2000_fig = matrix_body' * acc_sm_body;
 acc_ms_body      = mu_s * acc_sm_body_tmp;
-acc_ms_j2000_fig = matrix_body' * acc_ms_body
+acc_ms_j2000_fig = matrix_body' * acc_ms_body;
 
 % 3. Libration of the Moon.
 
@@ -185,24 +187,25 @@ acc_m_j2000 = acc_ms_j2000_fig + acc_me_j2000_fig + acc_me_j2000_obl + acc_me_j2
 % Assemble outputs to an acceleration matrix.
 A = [acc_s_j2000, acc_e_j2000, acc_m_j2000];
 
-
-disp('Moon Figure <-> Earth : Earth Acceleration');
-disp(acc_em_j2000_fig');
-disp('Moon Figure <-> Earth : Moon Acceleration');
-disp(acc_me_j2000_fig');
-disp('Moon Figure <-> Sun : Sun Acceleration');
-disp(acc_sm_j2000_fig');
-disp('Moon Figure <-> Sun : Moon Acceleration');
-disp(acc_ms_j2000_fig');
-disp('Earth Oblateness <-> Moon : Earth Acceleration');
-disp(acc_em_j2000_obl');
-disp('Earth Oblateness <-> Moon : Moon Acceleration');
-disp(acc_me_j2000_obl');
-disp('Earth Oblateness <-> Sun : Earth Acceleration');
-disp(acc_es_j2000_obl');
-disp('Earth Oblateness <-> Sun : Sun Acceleration');
-disp(acc_se_j2000_obl');
-disp('Earth Tides <-> Moon : Earth Acceleration');
-disp(acc_em_j2000_tides');
-disp('Earth Tides <-> Moon : Moon Acceleration');
-disp(acc_me_j2000_tides');
+if false 
+    disp('Moon Figure <-> Earth : Earth Acceleration');
+    disp(acc_em_j2000_fig');
+    disp('Moon Figure <-> Earth : Moon Acceleration');
+    disp(acc_me_j2000_fig');
+    disp('Moon Figure <-> Sun : Sun Acceleration');
+    disp(acc_sm_j2000_fig');
+    disp('Moon Figure <-> Sun : Moon Acceleration');
+    disp(acc_ms_j2000_fig');
+    disp('Earth Oblateness <-> Moon : Earth Acceleration');
+    disp(acc_em_j2000_obl');
+    disp('Earth Oblateness <-> Moon : Moon Acceleration');
+    disp(acc_me_j2000_obl');
+    disp('Earth Oblateness <-> Sun : Earth Acceleration');
+    disp(acc_es_j2000_obl');
+    disp('Earth Oblateness <-> Sun : Sun Acceleration');
+    disp(acc_se_j2000_obl');
+    disp('Earth Tides <-> Moon : Earth Acceleration');
+    disp(acc_em_j2000_tides');
+    disp('Earth Tides <-> Moon : Moon Acceleration');
+    disp(acc_me_j2000_tides');
+end

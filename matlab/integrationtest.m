@@ -1,296 +1,251 @@
-au = 149597870.691;
-secs_per_day = 86400;
-% Gauss' (gravitational) constant.
-k = 0.01720209895;
+% This routine performs numerical integration of the planets in the solar
+% system and the Moon 100 years forward and compares the resulting relative
+% positions w.r.t. Sun to outputs obtained from the JPL Horizons system
 
+% REFERENCES: 
+%  [1] Urban, Seidelmann - Explanatory Supplement to the Astronomical
+%  Almanac, 3rd edition, University Science Books, 2013.
+%  [2] Horizons System, available at 
+%  https://ssd.jpl.nasa.gov/horizons/app.html#/
 
-% Mass of the Sun divided by the mass of the target.
-MP_DE405 = [
-    6023600,
-    408523.71,
-    328900.5614,
-    3098708,
-    1047.3486,
-    3497.898,
-    22902.98,
-    19412.24,
-    135200000
+% Initial state of the Moon libration angles at JT_epoch 
+% (phi, theta, psi, phi1, theta1, psi1) [1]:
+LIB_initial = [
+    0.00512995970515812456; 
+    0.00004524704499022800;
+    0.38239065587686011507; 
+    -0.00000223092763198743;
+    1.29414222411027863099;
+    0.22994485870136698411
 ];
 
-% Standish, - The observational basis for JPL's DE200, the planetary ephemerides of the
-% Astronomical Almanac, Table 13.
-MP_DE118 = [
-    6023600,
-    408523.5,
-    328900.55,
-    3098710,
-    1047.35,
-    3498.0,
-    22960,
-    19314,
-    130000000
-];
-% Gravitational parameters converted to units (au^3/d^2).
-mu_DE405 = k * k ./ MP_DE405;
-mu_DE118 = k * k ./ MP_DE118;
+% Indices of the bodies.
+ind_sun     = 1;
+ind_mercury = 2;
+ind_venus   = 3;
+ind_earth   = 4;
+ind_moon    = 5;
+ind_mars    = 6;
+ind_jupiter = 7;
+ind_saturn  = 8;
+ind_uranus  = 9;
+ind_neptune = 10;
+ind_pluto   = 11;
 
-mu_DE118_ref = [
- 4.91254745145081175785E-11, 
- 7.24345620963276523095E-10,
- 8.88769273403302327042E-10,
- 9.54952894222405763492E-11, 
- 2.82534210344592625472E-7, 
- 8.45946850483065929285E-8, 
- 1.28881623813803488851E-8, 
- 1.53211248128427618918E-8, 
- 2.27624775186369921644E-12, 
- 1.09318924524284471369E-11,
- 2.95912208285591102582E-4, 
- 1.746e-13,
- 3.2e-14, 
- 4.08e-14,
- 1.6e-15, 
- 2.6e-15
-];
-mu_DE118 = mu_DE118_ref;
+num_targets = 11;
 
-r_DE118 = [
-   0.360306633689753  -0.094812876741772  -0.087466840117233; ...
-   0.607864664917316  -0.355183624636756  -0.198241429098555; ...
-   0.108217631828893  -0.927086983153762  -0.402080316213825; ...
-  -0.127964086113695  -1.326261800533362  -0.605308086525240; ...
-  -5.389682454460906  -0.770265495186166  -0.198664311659075; ...
-   7.952776853025736   4.507882218400655   1.520195525318334; ...
- -18.278236586353149  -0.957645728814821  -0.161321903972710; ...
- -16.367191358770889 -23.760896725373076  -9.321386617949729; ...
- -30.447680255169363  -0.531779349602614   9.059658488627493; ...
-   0.107381928664697  -0.929072422311444  -0.403163584984312; ...
-   0.004514411871436   0.000722828411521   0.000246591004926; ...
-   1.411799508188089  -2.220015521247168  -1.333245574044467; ...
-   0.175473303462249  -3.211942883393709   0.623275092845311; ...
-   0.217666759292022   2.385135772939689   0.923884742608490; ...
-   1.888703402869811  -0.864883028077176  -0.164291232326989; ...
-   1.372345484993627  -1.320425896926155  -0.689420082498910];
+% The intial conditions are obtained from JPL Horizons with origin at the
+% body center for all bodies except the Sun. This is done since the actual 
+% heliocentric initial condition in sources like [1] contain contributions 
+% to the Solar System Barycenter from smaller non-planetary objects.
 
-v_de118 = [
-   0.003708506979821   0.024854958767431   0.012929109014678; ...
-   0.011156645711264   0.015494075513639   0.006277390454670; ...
-   0.016825975833564   0.001562319686603   0.000677536789553; ...
-   0.014481919298278   0.000080528538390  -0.000351889310294; ...
-   0.001005345256992  -0.006529842519169  -0.002825878753243; ...
-  -0.003159466250401   0.004371463427837   0.001944139516914; ...
-   0.000171083105648  -0.003764670468282  -0.001651967861026; ...
-   0.002622524276429  -0.001527747312386  -0.000691831975622; ...
-   0.000281777580904  -0.003146959080495  -0.001079423804929; ...
-   0.017424727951982   0.001388165973076   0.000589059593310; ...
-  -0.000000283694463   0.000005181194409   0.000002230658834; ...
-   0.008518398256691   0.004591699560152   0.000425850909119; ...
-   0.008521357120679  -0.000955476986299  -0.000431266654063; ...
-  -0.010168342865173   0.000160321343213   0.001395757463454; ...
-   0.002905711176249   0.011282323890547   0.004959702374006; ...
-   0.007374265971197   0.009014137859400   0.006746644809004];
-
-[num_targets, tmp] = size(r_DE118);
-
-
-R = [
-    0.4502508156233E-2,  0.7670747009323E-3,  0.26605680517702E-3; ...
-    0.3572602064472754, -0.9154904243051842e-1, -0.8598103998694038e-1; ...
-    0.6082494331856041, -0.3491324431959006, -0.1955443457854069; ...
-    0.1160149091391665, -0.9266055536403853, -0.4018062776069881; ...
-    -0.1146885824390927, -0.1328366530833488E1, -0.6061551894193808
+% Initial condition for the position (au).
+R_initial = [
+    4.501771046200178E-03,  7.667597654825399E-04,  2.662206318863734E-04; ...
+    3.572602077668869E-01, -9.154904799747744E-02, -8.598103172768061E-02; ...
+    6.082494317526214E-01, -3.491324458403040E-01, -1.955443448720758E-01; ...
+    1.160247250568800E-01, -9.265813150908608E-01, -4.017930739420348E-01; ...
+    1.152165477160266E-01, -9.285759450811601E-01, -4.028803366239009E-01; ...
+   -1.146885853705725E-01, -1.328366526279570E+00, -6.061551990541251E-01;...
+   -5.384209277643075E+00, -8.312483870146020E-01, -2.250951187017292E-01; ...
+    7.889888161590055E+00,  4.595710989682622E+00,  1.558429793513401E+00; ...
+   -1.826990605559244E+01, -1.162723764514111E+00, -2.503714950236171E-01; ...
+   -1.605954001605754E+01, -2.394295935145348E+01, -9.400423444456409E+00; ...
+   -3.048781548042960E+01, -8.731761132527535E-01,  8.911305385348918E+00
 ];
 
-V = [
-    -0.3517482096451887E-6, 0.517762539958483E-5, 0.2229101854391E-5; ...
-     0.3367845662193786e-2, 0.2488934284224929e-1, 0.1294407158679597e-1; ...
-     0.1095242010990884e-1, 0.1561250673986247e-1, 0.6328876451746666e-2; ...
-     0.1681162005220229E-1, 0.174313168798203E-2, 0.7559737671361461E-3; ...
-     0.1448200480794475e-1, 0.2372854923607114e-3, -0.2837498361023970e-3
-];
-
-R = [4.501771046200178E-03,  7.667597654825399E-04,  2.662206318863734E-04; ...
-     3.572602077668869E-01, -9.154904799747744E-02, -8.598103172768061E-02; ...
-     6.082494317526214E-01, -3.491324458403040E-01, -1.955443448720758E-01; ...
-     %1.160149052298932E-01, -9.266055510108966E-01, -4.018062848190113E-01; ...
-     1.160247250568800E-01, -9.265813150908608E-01, -4.017930739420348E-01; ...
-     1.152165477160266E-01, -9.285759450811601E-01, -4.028803366239009E-01; ...
-     -1.146885853705725E-01, -1.328366526279570E+00, -6.061551990541251E-01;...
-     -5.384209277643075E+00, -8.312483870146020E-01, -2.250951187017292E-01; ...
-     7.889888161590055E+00,  4.595710989682622E+00,  1.558429793513401E+00; ...
-     -1.826990605559244E+01, -1.162723764514111E+00, -2.503714950236171E-01; ...
-     -1.605954001605754E+01, -2.394295935145348E+01, -9.400423444456409E+00; ...
-     -3.048781548042960E+01, -8.731761132527535E-01,  8.911305385348918E+00];
-
-V = [-3.517482063742068E-07,  5.177625639825057E-06,  2.229090837927562E-06; ...
+% Initial condition for the velocity (au/d).
+V_initial = [
+   -3.517482063742068E-07,  5.177625639825057E-06,  2.229090837927562E-06; ...
     3.367845709043980E-03,  2.488934292987171E-02,  1.294407129214571E-02; ...
     1.095242018625395E-02,  1.561250662984909E-02,  6.328876605810963E-03; ...
-    %1.681162005950355E-02,  1.743131601646955E-03,  7.559737978727808E-04; ...
     1.680431652771057E-02,  1.745166161927448E-03,  7.570134278727792E-04; ...
     1.740540134429601E-02,  1.577720694761970E-03,  6.714512881328027E-04; ...
-      1.448200480836478E-02,  2.372854532106865E-04, -2.837498250145917E-04; ...
+    1.448200480836478E-02,  2.372854532106865E-04, -2.837498250145917E-04; ...
     1.092364404049427E-03, -6.523294106045839E-03, -2.823012134541729E-03; ...
-    -3.217204775856843E-03,  4.330632712157481E-03,  1.926417212037553E-03; ...
+   -3.217204775856843E-03,  4.330632712157481E-03,  1.926417212037553E-03; ...
     2.215425014444429E-04, -3.767652400674729E-03, -1.653244046240149E-03; ...
-     2.643121823195712E-03, -1.503490013808834E-03, -6.812710872439278E-04; ...
-      3.225591308955338E-04, -3.148753752998151E-03, -1.080178675229524E-03];
-
-    %8.997011346712499e-10, ...
-mu = [ 
-    2.95912208285591102582E-4, ...
-    4.91254745145081175785E-11, ...
-    7.243452486162704e-10, ...
-    8.88769273403302327042E-10, ...
-    1.093186126794752e-11, ...
-    9.549535105779284e-11, ...
-    2.825345909524213e-07, ...
-    8.459715185679832e-08, ...
-    1.292024916781970e-08, ...
-    1.524358900804807e-08, ...
-    2.188699765425970e-12
+    2.643121823195712E-03, -1.503490013808834E-03, -6.812710872439278E-04; ...
+    3.225591308955338E-04, -3.148753752998151E-03, -1.080178675229524E-03
 ];
 
-mu(1) = k*k;
+% Astronomical unit (km).
+au = 149597870.691;
 
-%R = R(1:3, :);
-%V = V(1:3, :);
+% Gauss' (gravitational) constant from Table 8.4 in [1].
+k = 0.01720209895;
 
-% Recompute the bary center for the limited number of targets.
-[num_targets, tmp] = size(R);
+% Earth-Moon mass ratio from Table 8.4 in [1].
+em_ratio = 81.30056;
 
-% Sun has barycentric coordinates w.r.t. the entire solar system.
+% Standard gravitational parameters from Table 8.4 in [1].
+mu = k*k ./ [
+    1;
+    6023600;
+    408523.71;
+    328900.5614 * (em_ratio + 1) / em_ratio;
+    328900.5614 * (em_ratio + 1);
+    3098708;
+    1047.3486;
+    3497.898;
+    22902.98;
+    19412.24;
+    135200000
+]';
+%mu(5) =  1.093189443939597e-11
+mu(5) = 1.093189450705846e-11;
 
-% Barycentric coordinates w.r.t. the entire solar system.
+% From JPL Horizons output.
+GM_sun = 132712440041.93938; 
+GM_moon= 4902.800066; 
+GM_mer = 22031.86855;
+GM_ven = 324858.592; 
+GM_ear = 398600.435436; 
+
+mu(2) = k * k * GM_mer / GM_sun;
+mu(3) = k * k * GM_ven / GM_sun;
+mu(4) = k * k * GM_ear / GM_sun;
+mu(5) = k * k * GM_moon / GM_sun;
+
+% Load data for checking the accuracy of the results.
+jpl_reference;
+
+% Make coordinates consistent with the Sun expressed with respect to SSB by 
+% adding it to all OSVs.
 for ind_target = 2:num_targets    
-    R(ind_target, :) = R(ind_target, :) + R(1, :);
-    V(ind_target, :) = V(ind_target, :) + V(1, :);
+    R_initial(ind_target, :) = R_initial(ind_target, :) + R_initial(1, :);
+    V_initial(ind_target, :) = V_initial(ind_target, :) + V_initial(1, :);
 end
 
-r_bary = [0, 0, 0];
-v_bary = [0, 0, 0];
-for ind_target = 1:num_targets
-    
-    r_bary = r_bary + mu(ind_target) * R(ind_target, :);
-    v_bary = v_bary + mu(ind_target) * V(ind_target, :);
-end
-r_bary = r_bary / sum(mu(1:num_targets));
-v_bary = v_bary / sum(mu(1:num_targets));
+% OSVs related to the DoFs during the integration.
+R = R_initial;
+V = V_initial;
 
-% Barycentric coordinates w.r.t. mercury + sun + venus
+% Compute relativistic barycenter.
+[r_bary, v_bary] = barycenter(R, V, mu, true);
+
+% Offset bodies w.r.t. so that the relativistic barycenter is approximately
+% at the origin.
 for ind_target = 1:num_targets
     R(ind_target, :) = R(ind_target, :) - r_bary;
     V(ind_target, :) = V(ind_target, :) - v_bary;
 end
 
-%  45.692842376241231
-%  45.325092537270002
-% 45.501672825089997
-
-h = 0.1;
-t = 2440400.50;
-y = osv_to_dof(R, V);
-num_timesteps = 36525/h ;
-
-eps = 23.4392911111;
-R_ecleq = [1, 0, 0; 0, cosd(eps), sind(eps); 0, -sind(eps), cosd(eps)];
-
-R_out_sun = zeros(num_timesteps, 3);
-R_out_mercury = zeros(num_timesteps, 3);
-R_out_mars = zeros(num_timesteps, 3);
-R_out_earth = zeros(num_timesteps, 3);
-
-R2 = [
-    -1.366704558633395E-03,  1.086253860164812E-03,  4.790916327517826E-04; ...
-6.335816654365382E-02,  2.689612706297628E-01,  1.368983941946586E-01; ...
--6.957672208330384E-01,  1.515496381821502E-01,  1.121129913117672E-01; ...
- %1.041590588895398E-01, -9.266018559576931E-01, -4.015516308884816E-01; ... 
- 1.041894431765236E-01, -9.265908480455209E-01, -4.015458049375770E-01; ...
- 1.016887990927533E-01, -9.274968054722303E-01, -4.020252840074632E-01; ...
- 1.255004160442425E+00, -5.069561558365955E-01, -2.663158665693987E-01; ...
- 4.687208942535969E+00, -1.522941280347090E+00, -7.666689462546948E-01; ...
- -9.487593103868278E+00, -1.048417251153656E+00, -2.377265781789229E-02; ...
--4.483182858477944E+00, -1.700499854763142E+01, -7.384184365487108E+00; ...
--3.892220904129396E+00,  2.741500772319214E+01,  1.131801140941327E+01; ...
-4.360167346384468E+01,  5.815628741178641E+00, -1.132197906349386E+01];
-V2 = [
- -2.485305799238203E-06, -4.995121511530041E-06, -2.104790271131539E-06; ...
--3.314717449495574E-02,  4.957598002540843E-03,  6.080243318022868E-03; ...
--5.243103955861643E-03, -1.804944420124789E-02, -7.792810622006897E-03; ...
-%1.682945284484650E-02,  1.574060000337522E-03,  6.819463915010976E-04; ...
-1.682694953691248E-02,  1.580052940813023E-03,  6.839194672211411E-04; ...
-1.703297320231524E-02,  1.086830534361618E-03,  5.215342143175183E-04; ...
-6.327211094475598E-03,  1.272584553191707E-02,  5.667437832172720E-03; ...
-2.481977009935595E-03,  6.871944918345910E-03,  2.884822230803908E-03; ...
-2.666756332622375E-04, -5.135806719307473E-03, -2.133431724800196E-03; ...
-3.794695379901172E-03, -9.961793212384655E-04, -4.899133637396417E-04; ...
--3.130520632444039E-03, -3.873701029039054E-04, -8.061080755830829E-05; ...
-3.477319035265645E-04,  2.250644301296294E-03,  5.976100121068654E-04];
-
-R2_10 = [
-     7.083634997929501E-03, -1.772726277986925E-03, -9.879493609573379E-04; ...
-     -3.614799109762580E-01, -2.149202556780331E-01, -7.658911447225374E-02; ...
-     3.884145167264620E-01,  5.659207442565016E-01,  2.302300461960111E-01; ...
-     1.221020648108679E-01, -9.284837254216024E-01, -4.028166499539705E-01; ...
-     1.138808022005386E+00,  8.308630855866113E-01,  3.502598021259169E-01; ...
-     -3.869771076931566E+00,  3.320829183588539E+00,  1.517825631521473E+00; ...
-     -9.031012956075820E+00,  2.097691870217686E+00,  1.254431053299311E+00; ...
-     -1.203876851250476E+01, -1.315900917174624E+01, -5.592756047646428E+00; ...
-     -5.503263954748879E+00, -2.760702238372594E+01, -1.116280875441429E+01; ...
-     -2.736731219920045E+01, -1.204380859067496E+01,  4.486906035439755E+00
-];
-V2_10 = [
-    5.229023267119512E-06,  6.096608251935833E-06,  2.450366416761731E-06; ...
-    8.913569830758342E-03, -1.980445575489982E-02, -1.150330321739012E-02; ...
-    -1.723165564946013E-02,  9.275520788404601E-03,  5.263190085246536E-03; ...
-    1.681892133305798E-02,  1.733272205786679E-03,  7.514646901059922E-04; ...
-    -8.187772028260024E-03,  1.095234212456351E-02,  5.244923934444645E-03; ...
-    -5.263539946722389E-03, -4.772520285240593E-03, -1.917598205041036E-03; ...
-     -1.746531021755323E-03, -5.019896290162435E-03, -1.997762998123472E-03; ...
-    2.979333784068880E-03, -2.473568026002680E-03, -1.125576013334961E-03; ...
-    3.066780551594476E-03, -4.840087228430047E-04, -2.744350754662780E-04; ...
-     1.391508152597932E-03, -2.899424861920226E-03, -1.323983670533976E-03
-];
-
-OMEGA = zeros(num_timesteps, 2);
-for timestep = 1:num_timesteps
-    if mod(timestep, 1000) == 0
-        disp(sprintf('%d/%d', timestep, num_timesteps));
-        disp(R);
-    end
-    [y, t] = runge4(@func, t, y, h, mu);
-
-    [R, V] = dof_to_osv(y);
-    [R, V] = adjust_sun(R, V, mu, 1);
-    R_out_sun(timestep, :) = R(1, :) * R_ecleq';
-    R_out_mercury(timestep, :) = R(2, :) * R_ecleq';
-
-    %r_bary = [0, 0, 0];
-    %v_bary = [0, 0, 0];
-    %for ind_target = 1:num_targets
-    %    r_bary = r_bary + mu(ind_target) * R(ind_target, :);
-    %    v_bary = v_bary + mu(ind_target) * V(ind_target, :);
-    %end
-    %r_bary = r_bary / sum(mu(1:num_targets));
-    %v_bary = v_bary / sum(mu(1:num_targets));
-    %for ind_target = 1:num_targets
-    %    R(ind_target, :) = R(ind_target, :) - r_bary;
-    %    V(ind_target, :) = V(ind_target, :) - v_bary;
-    %end
-    %[R, V] = adjust_sun(R, V, mu, 1);
-    %y = osv_to_dof(R, V);
-
-
-    %[a, ecc_norm, incl, Omega, omega, E, M, f] = kepler_osculating(R(2, :) - R(1, :), V(2, :) - V(1, :));
-    %OMEGA(timestep, :) = [t, omega];
-
-    %R_out_earth(timestep, :) = R(3, :) * R_ecleq';
-    %R_out_mars(timestep, :) = R(4, :) * R_ecleq';
-end
-
+reference = {
+    [0, 0, 0, 0, 0];
+    mercury_exp;
+    venus_exp;
+    earth_exp;
+    moon_exp;
+    mars_exp;
+    jupiter_exp;
+    saturn_exp;
+    uranus_exp;
+    neptune_exp;
+    pluto_exp
+};
 names = ["Sun", "Mercury", "Venus", "Earth", "Moon", "Mars", "Jupiter", "Saturn", "Uranus", "Neptune", "Pluto"];
-for ind_target = 1:num_targets
-    err = norm(R(ind_target, :) - R2(ind_target, :)) * au;
+names_short = ["S", "M", "V", "E", "Mo", "Ma", "J", "S", "U", "N", "P"];
 
-    disp(names(ind_target));
-    disp(err);
+
+% Matrix with position errors in (km) for all targets for each timestep.
+ERR = [];
+% Time step size in days.
+JT_timestep = 0.01;
+% Start date 1969-Jun-28 00:00:00.0000
+JT_epoch = 2440400.50;
+% Compute number of timesteps.
+num_timesteps = floor(365.25 * 100 / JT_timestep + 1);
+% Current Julian time.
+JT = JT_epoch;
+% Time after epoch.
+t = 0;
+
+% We first have 6 DoFs for the libration angles and their time derivatives
+% and then additional 6 DoFs (x, y, z, x1, y1, z1) for each body.
+y = [LIB_initial; osv_to_dof(R, V)];
+
+y_start2 = y;
+R_start2 = R;
+V_start2 = V;
+
+
+ERR = [];
+JT = t + JT_epoch;
+
+for timestep = 1:num_timesteps
+    % Prepare output print to display during the integration.
+    err_step = zeros(1, num_targets);
+    err_str = "";
+    filled = false;
+
+    for ind_target = 1:num_targets
+        ref_target = reference{ind_target};
+        results = find(abs(ref_target(:, 1) - JT) < 1/86400);
+        if length(results) > 0
+            year         = ref_target(results, 2);
+            if ~filled
+                err_str = sprintf("%d - %.10f ", year, JT);
+            end
+
+            r_target     = R(ind_target, 1:3) - R(1, 1:3);
+            r_target_exp = ref_target(results, 3:5);
+            err_target = norm(r_target - r_target_exp) * au;
+
+            err_step(1, ind_target) = err_target;
+
+            err_str_target = sprintf("%s %.2f ", names_short(ind_target), err_target);
+            err_str = strcat(err_str, err_str_target);
+            filled = true;
+        end        
+    end
+    if filled
+        disp(err_str);
+        ERR = [ERR; year, err_step];
+    end
+
+    % Perform the actual integration.
+    [y, t] = runge4(@func_lib, t, y, JT_timestep, mu);
+
+    % Convert DoFs back to OSVs.
+    [R, V] = dof_to_osv(y(7:end));
+
+    JT = t + JT_epoch;
 end
+
+% Visualize the error.
+figure(1);
+clf
+
+year        = ERR(:, 1);
+err_mercury = ERR(:, 3);
+err_venus   = ERR(:, 4);
+err_earth   = ERR(:, 5);
+err_moon    = ERR(:, 6);
+err_mars    = ERR(:, 7);
+err_jupiter = ERR(:, 8);
+err_saturn  = ERR(:, 9);
+err_uranus  = ERR(:, 10);
+err_neptune = ERR(:, 11);
+err_pluto   = ERR(:, 12);
+
+endyear = 1969 + length(ERR) - 1;
+semilogy(year, err_mercury, 'r',   'LineWidth', 2)
+hold on;
+semilogy(year, err_venus,   'g',   'LineWidth', 2)
+semilogy(year, err_earth,   'b',   'LineWidth', 2)
+semilogy(year, err_moon,    'bo',  'LineWidth', 2)
+semilogy(year, err_mars,    'm',   'LineWidth', 2)
+semilogy(year, err_jupiter, 'c',   'LineWidth', 2)
+semilogy(year, err_saturn,  'y',   'LineWidth', 2)
+semilogy(year, err_uranus,  'k',   'LineWidth', 2)
+semilogy(year, err_neptune, 'k--', 'LineWidth', 2)
+semilogy(year, err_pluto,   'k:',  'LineWidth', 2)
+
+legend('Mercury', 'Venus', 'Earth', 'Moon', 'Mars', 'Jupiter', 'Saturn', 'Uranus', ...
+    'Neptune', 'Pluto', 'FontSize', 18);
+xlabel('Year', 'FontSize', 18);
+ylabel('Error in Position (km)', 'FontSize', 18);
+xlim([1969, endyear])
+ylim([0.01 1000])
+grid on

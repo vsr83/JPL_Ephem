@@ -1,4 +1,4 @@
-function acc_point = acc_tides(r_me_tod, mu_e, mu_m)
+function [acc_moon, acc_earth] = acc_tides(r_me_tod, mu_e, mu_m)
 % ACC_TIDES - Compute the acceleration 
 %
 % Important: This method has not been implemented for performance but for 
@@ -24,13 +24,13 @@ function acc_point = acc_tides(r_me_tod, mu_e, mu_m)
 %  http://www.moshier.net/de118i-2.zip
 
 % Potential love number for the Earth [2]. In [1], the value is 0.29.
-love = 0.30;
+love = 0.29;
 
 % Astronomical unit in km.
-au = 1.495978706910000e+08;
+au = 149597870.691;
 
-% Equatorial radius of Earth [2]. 6378.156 km in [1].
-a = 6378.14 / au;
+% Equatorial radius of Earth [3].
+a = 6378.137 / au;
 
 % Distance between Earth and the Moon.
 r_em = norm(r_me_tod);
