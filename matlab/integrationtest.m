@@ -249,3 +249,4 @@ ylabel('Error in Position (km)', 'FontSize', 18);
 xlim([1969, endyear])
 ylim([0.01 1000])
 grid on
+title(sprintf('Numerical Integration Error %d-%d', min(year), max(year)), 'FontSize', 18);
