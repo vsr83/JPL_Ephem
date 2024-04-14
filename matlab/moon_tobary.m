@@ -39,7 +39,7 @@ r_M = R(ind_emb, :) + R(ind_moon, :) * mu_ratio / (1 + mu_ratio);
 v_E = V(ind_emb, :) - V(ind_moon, :) / (1 + mu_ratio);
 v_M = V(ind_emb, :) + V(ind_moon, :) * mu_ratio / (1 + mu_ratio);
 
-R(ind_earth, :) = r_E;
+R(ind_emb, :) = r_E;
 R(ind_moon, :) = r_M;
-V(ind_earth, :) = v_E;
+V(ind_emb, :) = v_E;
 V(ind_moon, :) = v_M;
