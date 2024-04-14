@@ -7,6 +7,9 @@
 %  Almanac, 3rd edition, University Science Books, 2013.
 %  [2] Horizons System, available at 
 %  https://ssd.jpl.nasa.gov/horizons/app.html#/
+%  [3] Park, Folkner, Williams, Boggs - The JPL Planetary and Lunar 
+%  Ephemerides DE440 and DE441, The Astronomical Journal, vol 161, No 3,
+%  2021.
 
 % Initial state of the Moon libration angles at JT_epoch 
 % (phi, theta, psi, phi1, theta1, psi1) [1]:
@@ -17,6 +20,25 @@ LIB_initial = [
     -0.00000223092763198743;
     1.29414222411027863099;
     0.22994485870136698411
+];
+
+LIB_initial = [
+    0.00512830031411853500;
+    0.00004573724185991433;
+    0.38239278420173690000;
+   -0.00000218986174567295;
+    1.29416700274878300000;
+    0.22994486018992250000
+];
+
+% From DE421 obtained using the python package jplephem.
+LIB_initial = [
+    5.128132058714363e-03;
+    1.165507165777481e-04;
+    3.823932005230066e-01;
+    1.461912823858170e-05;
+    1.294168056057082e+00;
+    2.298367282420818e-01
 ];
 
 % Indices of the bodies.
@@ -95,17 +117,29 @@ mu = k*k ./ [
 %mu(5) =  1.093189443939597e-11
 mu(5) = 1.093189450705846e-11;
 
-% From JPL Horizons output.
-GM_sun = 132712440041.93938; 
-GM_moon= 4902.800066; 
-GM_mer = 22031.86855;
-GM_ven = 324858.592; 
-GM_ear = 398600.435436; 
+% From Table 2 in [3].
+GM_sun = 132712440041.279419; 
+GM_moon= 4902.800118; 
+GM_mer = 22031.868551;
+GM_ven = 324858.592000; 
+GM_ear = 398600.435507;
+GM_mar = 42828.375816;
+GM_jup = 126712764.100000;
+GM_sat = 37940584.841800;
+GM_ura = 5794556.400000;
+GM_nep = 6836527.100580;
+GM_plu = 975.500000;
 
 mu(2) = k * k * GM_mer / GM_sun;
 mu(3) = k * k * GM_ven / GM_sun;
 mu(4) = k * k * GM_ear / GM_sun;
 mu(5) = k * k * GM_moon / GM_sun;
+mu(6) = k * k * GM_mar / GM_sun;
+mu(7) = k * k * GM_jup / GM_sun;
+mu(8) = k * k * GM_sat / GM_sun;
+mu(9) = k * k * GM_ura / GM_sun;
+mu(10)= k * k * GM_nep / GM_sun;
+mu(11)= k * k * GM_plu / GM_sun;
 
 % Load data for checking the accuracy of the results.
 jpl_reference;
@@ -161,9 +195,13 @@ JT = JT_epoch;
 % Time after epoch.
 t = 0;
 
+
+[R, V] = moon_frombary(R, V, mu, 4, 5);
+
 % We first have 6 DoFs for the libration angles and their time derivatives
 % and then additional 6 DoFs (x, y, z, x1, y1, z1) for each body.
 y = [LIB_initial; osv_to_dof(R, V)];
+[R, V] = moon_tobary(R, V, mu, 4, 5);
 
 y_start2 = y;
 R_start2 = R;
@@ -171,6 +209,7 @@ V_start2 = V;
 
 
 ERR = [];
+LIB_out = [];
 JT = t + JT_epoch;
 
 for timestep = 1:num_timesteps
@@ -202,6 +241,11 @@ for timestep = 1:num_timesteps
     if filled
         disp(err_str);
         ERR = [ERR; year, err_step];
+        LIB_out = [LIB_out; y(1:6)'];
+    end
+
+    if timestep < 5
+        %disp(y(1:6)');
     end
 
     % Perform the actual integration.
@@ -209,44 +253,47 @@ for timestep = 1:num_timesteps
 
     % Convert DoFs back to OSVs.
     [R, V] = dof_to_osv(y(7:end));
+    [R, V] = moon_tobary(R, V, mu, 4, 5);
 
     JT = t + JT_epoch;
+
+    if filled
+        % Visualize the error.
+        figure(1);
+        clf
+        
+        year        = ERR(:, 1);
+        err_mercury = ERR(:, 3);
+        err_venus   = ERR(:, 4);
+        err_earth   = ERR(:, 5);
+        err_moon    = ERR(:, 6);
+        err_mars    = ERR(:, 7);
+        err_jupiter = ERR(:, 8);
+        err_saturn  = ERR(:, 9);
+        err_uranus  = ERR(:, 10);
+        err_neptune = ERR(:, 11);
+        err_pluto   = ERR(:, 12);
+        
+        endyear = 1969 + length(ERR) - 1;
+        semilogy(year, err_mercury, 'r',   'LineWidth', 2)
+        hold on;
+        semilogy(year, err_venus,   'g',   'LineWidth', 2)
+        semilogy(year, err_earth,   'b',   'LineWidth', 2)
+        semilogy(year, err_moon,    'bo',  'LineWidth', 2)
+        semilogy(year, err_mars,    'm',   'LineWidth', 2)
+        semilogy(year, err_jupiter, 'c',   'LineWidth', 2)
+        semilogy(year, err_saturn,  'y',   'LineWidth', 2)
+        semilogy(year, err_uranus,  'k',   'LineWidth', 2)
+        semilogy(year, err_neptune, 'k--', 'LineWidth', 2)
+        semilogy(year, err_pluto,   'k:',  'LineWidth', 2)
+        
+        legend('Mercury', 'Venus', 'Earth', 'Moon', 'Mars', 'Jupiter', 'Saturn', 'Uranus', ...
+            'Neptune', 'Pluto', 'FontSize', 18);
+        xlabel('Year', 'FontSize', 18);
+        ylabel('Error in Position (km)', 'FontSize', 18);
+        xlim([1969, endyear])
+        ylim([0.01 1000])
+        grid on
+        title(sprintf('Numerical Integration Error %d-%d', min(year), max(year)), 'FontSize', 18);
+    end
 end
-
-% Visualize the error.
-figure(1);
-clf
-
-year        = ERR(:, 1);
-err_mercury = ERR(:, 3);
-err_venus   = ERR(:, 4);
-err_earth   = ERR(:, 5);
-err_moon    = ERR(:, 6);
-err_mars    = ERR(:, 7);
-err_jupiter = ERR(:, 8);
-err_saturn  = ERR(:, 9);
-err_uranus  = ERR(:, 10);
-err_neptune = ERR(:, 11);
-err_pluto   = ERR(:, 12);
-
-endyear = 1969 + length(ERR) - 1;
-semilogy(year, err_mercury, 'r',   'LineWidth', 2)
-hold on;
-semilogy(year, err_venus,   'g',   'LineWidth', 2)
-semilogy(year, err_earth,   'b',   'LineWidth', 2)
-semilogy(year, err_moon,    'bo',  'LineWidth', 2)
-semilogy(year, err_mars,    'm',   'LineWidth', 2)
-semilogy(year, err_jupiter, 'c',   'LineWidth', 2)
-semilogy(year, err_saturn,  'y',   'LineWidth', 2)
-semilogy(year, err_uranus,  'k',   'LineWidth', 2)
-semilogy(year, err_neptune, 'k--', 'LineWidth', 2)
-semilogy(year, err_pluto,   'k:',  'LineWidth', 2)
-
-legend('Mercury', 'Venus', 'Earth', 'Moon', 'Mars', 'Jupiter', 'Saturn', 'Uranus', ...
-    'Neptune', 'Pluto', 'FontSize', 18);
-xlabel('Year', 'FontSize', 18);
-ylabel('Error in Position (km)', 'FontSize', 18);
-xlim([1969, endyear])
-ylim([0.01 1000])
-grid on
-title(sprintf('Numerical Integration Error %d-%d', min(year), max(year)), 'FontSize', 18);

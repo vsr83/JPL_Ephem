@@ -82,13 +82,6 @@ else
     % 2000-Jan-01 12:00:00
     JD_epoch = 2451545.0;
 end
-% Mean rotation period of the Moon.
-mean_period_moon  = 27.32158222801637949485;
-angular_speed_moon = 2 * pi / mean_period_moon;
-total_rots_moon = floor((JT - JD_epoch) / mean_period_moon);
-days_after_full = JT - JD_epoch - mean_period_moon * total_rots_moon;
-psi1 = psi1 + angular_speed_moon;
-psi = psi + angular_speed_moon * days_after_full;
 
 % Matrix from DE118/J2000 coordinates to body coordinates.
 matrix_body = matrix_to_body(phi, theta, psi);
@@ -111,7 +104,7 @@ au = 149597870.691;
 a_moon = 1738 / au;
 
 % Equatorial radius of the Earth (au).
-a_earth = 6378.137 / au;
+a_earth = 6378.1363 / au;
 
 % The position of the Earth w.r.t. Moon body center in DE118/J2000 and 
 % body coordinates.
