@@ -185,7 +185,7 @@ names_short = ["S", "M", "V", "E", "Mo", "Ma", "J", "S", "U", "N", "P"];
 % Matrix with position errors in (km) for all targets for each timestep.
 ERR = [];
 % Time step size in days.
-JT_timestep = 0.01;
+JT_timestep = 0.05;
 % Start date 1969-Jun-28 00:00:00.0000
 JT_epoch = 2440400.50;
 % Compute number of timesteps.
@@ -209,17 +209,23 @@ V_start2 = V;
 
 
 ERR = [];
+ERR_angle = [];
 LIB_out = [];
+F = [];
 JT = t + JT_epoch;
 
 for timestep = 1:num_timesteps
     % Prepare output print to display during the integration.
     err_step = zeros(1, num_targets);
+    err_angle= zeros(1, num_targets);
     err_str = "";
+    err_str_mas = "";
     filled = false;
 
     for ind_target = 1:num_targets
         ref_target = reference{ind_target};
+        ref_earth  = reference{ind_earth};
+
         results = find(abs(ref_target(:, 1) - JT) < 1/86400);
         if length(results) > 0
             year         = ref_target(results, 2);
@@ -228,29 +234,53 @@ for timestep = 1:num_timesteps
             end
 
             r_target     = R(ind_target, 1:3) - R(1, 1:3);
+            r_earth      = R(ind_earth, 1:3) - R(1, 1:3);
+
+            if ind_target == 4
+                vector_target =r_earth / norm(r_earth);
+            else
+                vector_target = (r_target - r_earth) / norm(r_target - r_earth);;
+            end
+
             r_target_exp = ref_target(results, 3:5);
+            r_earth_exp  = ref_earth(results, 3:5);
+            if ind_target == 4
+                vector_exp =  (r_earth_exp) / norm(r_earth_exp);
+            else
+                vector_exp =  (r_target_exp - r_earth) / norm(r_target_exp - r_earth);
+            end
             err_target = norm(r_target - r_target_exp) * au;
+            %err_angle_mas = acosd(min(1, abs(dot(vector_target, vector_exp)))) * 3600000
+            err_angle_mas = vectors_angle(vector_target, vector_exp) * 3600000;
+
 
             err_step(1, ind_target) = err_target;
+            err_angle(1, ind_target) = err_angle_mas;
 
-            err_str_target = sprintf("%s %.2f ", names_short(ind_target), err_target);
+            err_str_target     = sprintf("%s %.02f ", names_short(ind_target), err_target);
+            err_str_target_mas = sprintf("%s %.01f ", names_short(ind_target), err_angle_mas);
             err_str = strcat(err_str, err_str_target);
+            err_str_mas = strcat(err_str_mas, err_str_target_mas);
             filled = true;
         end        
     end
     if filled
         disp(err_str);
+        disp(err_str_mas);
         ERR = [ERR; year, err_step];
+        ERR_angle = [ERR_angle; year, err_angle];
         LIB_out = [LIB_out; y(1:6)'];
     end
 
-    if timestep < 5
-        %disp(y(1:6)');
-    end
 
     % Perform the actual integration.
-    [y, t] = runge4(@func_lib, t, y, JT_timestep, mu);
-
+    if timestep <= 8 
+        [y, t] = runge4(@func_lib, t, y, JT_timestep, mu);
+        f = func_lib(t, y, mu);
+        F = [f, F];
+    else 
+        [y, t, F] = adams8(@func_lib, t, y, F, JT_timestep, mu);
+    end
     % Convert DoFs back to OSVs.
     [R, V] = dof_to_osv(y(7:end));
     [R, V] = moon_tobary(R, V, mu, 4, 5);
@@ -261,6 +291,7 @@ for timestep = 1:num_timesteps
         % Visualize the error.
         figure(1);
         clf
+        subplot(1, 2, 1);
         
         year        = ERR(:, 1);
         err_mercury = ERR(:, 3);
@@ -275,24 +306,62 @@ for timestep = 1:num_timesteps
         err_pluto   = ERR(:, 12);
         
         endyear = 1969 + length(ERR) - 1;
-        semilogy(year, err_mercury, 'r',   'LineWidth', 2)
+        loglog(year-1969, err_mercury, 'r',   'LineWidth', 2)
         hold on;
-        semilogy(year, err_venus,   'g',   'LineWidth', 2)
-        semilogy(year, err_earth,   'b',   'LineWidth', 2)
-        semilogy(year, err_moon,    'bo',  'LineWidth', 2)
-        semilogy(year, err_mars,    'm',   'LineWidth', 2)
-        semilogy(year, err_jupiter, 'c',   'LineWidth', 2)
-        semilogy(year, err_saturn,  'y',   'LineWidth', 2)
-        semilogy(year, err_uranus,  'k',   'LineWidth', 2)
-        semilogy(year, err_neptune, 'k--', 'LineWidth', 2)
-        semilogy(year, err_pluto,   'k:',  'LineWidth', 2)
+        loglog(year-1969, err_venus,   'g',   'LineWidth', 2)
+        loglog(year-1969, err_earth,   'b',   'LineWidth', 2)
+        loglog(year-1969, err_moon,    'bo',  'LineWidth', 2)
+        loglog(year-1969, err_mars,    'm',   'LineWidth', 2)
+        loglog(year-1969, err_jupiter, 'c',   'LineWidth', 2)
+        loglog(year-1969, err_saturn,  'y',   'LineWidth', 2)
+        loglog(year-1969, err_uranus,  'k',   'LineWidth', 2)
+        loglog(year-1969, err_neptune, 'k--', 'LineWidth', 2)
+        loglog(year-1969, err_pluto,   'k:',  'LineWidth', 2)
         
         legend('Mercury', 'Venus', 'Earth', 'Moon', 'Mars', 'Jupiter', 'Saturn', 'Uranus', ...
-            'Neptune', 'Pluto', 'FontSize', 18);
+            'Neptune', 'Pluto', 'FontSize', 18, 'Location', 'NorthWest');
         xlabel('Year', 'FontSize', 18);
         ylabel('Error in Position (km)', 'FontSize', 18);
-        xlim([1969, endyear])
+        %xlim([1969, endyear])
+        xlim([1 100]);
         ylim([0.01 1000])
+        grid on
+        title(sprintf('Numerical Integration Error %d-%d', min(year), max(year)), 'FontSize', 18);
+
+        subplot(1, 2, 2);
+        
+        year        = ERR(:, 1);
+        err_mercury = ERR_angle(:, 3);
+        err_venus   = ERR_angle(:, 4);
+        err_sun     = ERR_angle(:, 5);
+        err_moon    = ERR_angle(:, 6);
+        err_mars    = ERR_angle(:, 7);
+        err_jupiter = ERR_angle(:, 8);
+        err_saturn  = ERR_angle(:, 9);
+        err_uranus  = ERR_angle(:, 10);
+        err_neptune = ERR_angle(:, 11);
+        err_pluto   = ERR_angle(:, 12);
+        
+        endyear = 1969 + length(ERR) - 1;
+        loglog(year-1969, err_mercury, 'r',   'LineWidth', 2)
+        hold on;
+        loglog(year-1969, err_venus,   'g',   'LineWidth', 2)
+        loglog(year-1969, err_sun,     'b',   'LineWidth', 2)
+        loglog(year-1969, err_moon,    'bo',  'LineWidth', 2)
+        loglog(year-1969, err_mars,    'm',   'LineWidth', 2)
+        loglog(year-1969, err_jupiter, 'c',   'LineWidth', 2)
+        loglog(year-1969, err_saturn,  'y',   'LineWidth', 2)
+        loglog(year-1969, err_uranus,  'k',   'LineWidth', 2)
+        loglog(year-1969, err_neptune, 'k--', 'LineWidth', 2)
+        loglog(year-1969, err_pluto,   'k:',  'LineWidth', 2)
+        
+        legend('Mercury', 'Venus', 'Sun', 'Moon', 'Mars', 'Jupiter', 'Saturn', 'Uranus', ...
+            'Neptune', 'Pluto', 'FontSize', 18, 'Location', 'NorthWest');
+        xlabel('Year', 'FontSize', 18);
+        ylabel('Error in Angle from Earth (mas)', 'FontSize', 18);
+        %xlim([1969, endyear])
+        xlim([1 100]);
+        ylim([0.01 3600])
         grid on
         title(sprintf('Numerical Integration Error %d-%d', min(year), max(year)), 'FontSize', 18);
     end
