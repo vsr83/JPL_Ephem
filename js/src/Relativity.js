@@ -1,8 +1,5 @@
 import { linComb, norm, vecDiff, vecMul, vecSum, dot } from "./MathUtils.js";
-
-// Speed of light (au/d).
-const c = 173.144632720536344565;
-const c2 = c * c;
+import { constants } from "./Constants.js";
 
 /**
  * Compute the classical or relativistic barycenter for the given point 
@@ -25,6 +22,7 @@ const c2 = c * c;
  */
 export function barycenter(state, relavistic) {
     const numTargets = state.length;
+    const c2 = constants.c2;
 
     // Relativistic or classical standard gravitational parameter for the 
     // evaluation of the barycenter. 
@@ -95,6 +93,7 @@ export function barycenter(state, relavistic) {
  */
 export function accPointMass(state, relativistic) {
     const numTargets = state.length;
+    const c2 = constants.c2;
 
     // Compute distances and third powers of distances between every pair
     // of objects.

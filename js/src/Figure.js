@@ -1,3 +1,10 @@
+import { nutationTerms } from "./Nutation.js";
+import { rotateCart1, rotateCart2, rotateCart3 } from "./Rotations.js";
+import { constants } from "./Constants.js";
+import { cross, norm, linComb, vecMul, vecDiff, vecSum } from "./MathUtils.js";
+import { legendreValue, legendreDeriv, legendreAssoc, legendreAssocd } from "./Legendre.js";
+import { coordModTod, coordJ2000Mod, coordTodMod, coordModJ2000 } from "./Frames.js";
+
 /**
  * Compute the acceleration and torque due to zonal and tesseral harmonics 
  * from an extended body.
@@ -49,13 +56,13 @@ export function accBody(rPoint, a, mu, Jn, CSnm) {
 
     // Evaluate zonal harmonics.
     for (let indZonal = 0; indZonal < numberZonal; indZonal++) {
-        n = indZonal + 2;
+        const n = indZonal + 2;
 
         // Legendre value and derivative terms.
         const Pn    = legendreValue(n, sinLat);
         const PnDot = legendreDeriv(n, sinLat);
 
-        accPointZonal = linComb([1, Math.pow(a/r, n)], 
+        accPointZonal = linComb([1, Jn[indZonal] * Math.pow(a/r, n)], 
             [accPointZonal, [(n + 1) * Pn, 0, -cosLat * PnDot]]);
     }
     accPointZonal = vecMul(accPointZonal, -mu / (r * r));
@@ -70,14 +77,14 @@ export function accBody(rPoint, a, mu, Jn, CSnm) {
         const cosMlon = Math.cos(m * lonPoint);
         const sinMlon = Math.sin(m * lonPoint);
 
-        Pnm    = Math.pow(-1, m) * legendreAssoc(n, m, sin_lat);
-        PnmDot = Math.pow(-1, m) * legendreAssocd(n, m, sin_lat);
+        const Pnm    = Math.pow(-1, m) * legendreAssoc(n, m, sinLat);
+        const PnmDot = Math.pow(-1, m) * legendreAssocd(n, m, sinLat);
 
         accPointTesseral = linComb([1, Math.pow(a / r, n)],
             [accPointTesseral,
             [-(n + 1)     * Pnm    * ( Cnm * cosMlon + Snm * sinMlon), 
-              (m/cos_lat) * Pnm    * (-Cnm * sinMlon + Snm * cosMlon), 
-              cos_lat     * PnmDot * ( Cnm * cosMlon + Snm * sinMlon)]]);
+              (m/cosLat) * Pnm    * (-Cnm * sinMlon + Snm * cosMlon), 
+              cosLat     * PnmDot * ( Cnm * cosMlon + Snm * sinMlon)]]);
     }
     accPointTesseral = vecMul(accPointTesseral, -mu / (r * r));
     accPoint = linComb([1, 1], [accPointZonal, accPointTesseral]);
@@ -115,35 +122,44 @@ function coordFromBody(r, phi, theta, psi) {
     return rotateCart3(rotateCart1(rotateCart3(r, -psi), -theta), -phi);
 }
 
-function accOblateness(OSV, mu, libMoon, JT, Je, Jm, CSnm) {
-    const muS = mu[0];
-    const muE = mu[1];
-    const muM = mu[2];
 
-    rS = OSV["Sun"].r;
-    rE = OSV["Earth"].r;
-    rM = OSV["Moon"].r;
-    vS = OSV["Sun"].v;
-    vE = OSV["Earth"].v;
-    vM = OSV["Moon"].v;
+/**
+ * Compute the accelerations due to Earth and Moon figure and tides.
+ * 
+ * @param {*} OSV 
+ *      The fields r, v, mu for "Sun", "Earth", "Moon".
+ * @param {*} libMoon 
+ * @param {*} JT 
+ * @param {*} Je 
+ * @param {*} Jm 
+ * @param {*} CSnm 
+ * @returns 
+ */
+export function accOblateness(OSV, libMoon, JT, Je, Jm, CSnm) {
+    const rS = OSV["Sun"].r;
+    const rE = OSV["Earth"].r;
+    const rM = OSV["Moon"].r;
+    const vS = OSV["Sun"].v;
+    const vE = OSV["Earth"].v;
+    const vM = OSV["Moon"].v;
+    const muS = OSV["Sun"].mu;
+    const muE = OSV["Earth"].mu;
+    const muM = OSV["Moon"].mu;
 
     // Parse libration angles.
-    const phi    = libMoon(1);
-    const phi1   = libMoon(2);
-    const theta  = libMoon(3);
-    const theta1 = libMoon(4);
-    const psi    = libMoon(5);
-    const psi1   = libMoon(6);
+    const phi    = libMoon.phi;
+    const theta  = libMoon.theta;
+    const psi    = libMoon.psi;
 
     const nutData = nutationTerms((JT - 2451545.0) / 36525.0);
 
     // The position of the Earth w.r.t. Moon body center in DE118/J2000 and 
     // body coordinates.
-    const rEmJ2000 = rE - rM;
+    const rEmJ2000 = vecDiff(rE, rM);
     const rEmBody = coordToBody(rEmJ2000, phi, theta, psi);
 
     // Acceleration/mu and
-    const accEmBodyTmp = accBody(rEmBody, aMoon, 1, Jm, CSnm);
+    const accEmBodyTmp = accBody(rEmBody, constants.aMoon, 1, Jm, CSnm);
     // Torque per unit mass.
     const Tearth = cross(rEmBody, accEmBodyTmp);
 
@@ -152,23 +168,23 @@ function accOblateness(OSV, mu, libMoon, JT, Je, Jm, CSnm) {
     const accEmJ2000Fig = coordFromBody(accEmBody, phi, theta, psi);
     const accMeBody     = vecMul(accEmBodyTmp, muE);
     const accMeJ2000Fig = coordFromBody(accMeBody, phi, theta, psi);
-    
+
     const rSmJ2000 = vecDiff(rS, rM);
     const rSmBody  = coordToBody(rSmJ2000, phi, theta, psi);
-    const accSmBodyTmp = accBody(rSmBody, aMoon, 1, Jm, CSnm);
+    const accSmBodyTmp = accBody(rSmBody, constants.aMoon, 1, Jm, CSnm);
     const Tsun = cross(rSmBody, accSmBodyTmp);
 
     // 2. Accelerations from the interaction between the Moon figure and Sun.
-    const accSmBody     = vecMul(accSmBodyTmp, -mu_m);
+    const accSmBody     = vecMul(accSmBodyTmp, -muM);
     const accSmJ2000Fig = coordFromBody(accSmBody, phi, theta, psi);
-    const accMsBody     = vecMul(accSmBodyTmp, mu_s);
+    const accMsBody     = vecMul(accSmBodyTmp, muS);
     const accMsJ2000Fig = coordFromBody(accMsBody, phi, theta, psi);
 
     // 3. Libration of the Moon.
 
     // Compute the total torque on the Moon and the angular accelerations.
-    const T = linComb([mu_e, mu_s], [T_earth, T_sun]);
-    const accMoon = librationMoon(phi, theta, psi, phi1, theta1, psi1, T);
+    const T = linComb([muE, muS], [Tearth, Tsun]);
+    librationMoon(libMoon, T);
 
     // 4. Oblateness of the Earth.
 
@@ -183,11 +199,11 @@ function accOblateness(OSV, mu, libMoon, JT, Je, Jm, CSnm) {
     const rMeTod = coordModTod(osvMeMod, nutData).r;
 
     // Transform the relative position of the Sun to the True-of-Date frame.
-    const osvSeMod = coordJ2000Mod({r : r_se_j2000, v : [0, 0, 0], JT : JT});
+    const osvSeMod = coordJ2000Mod({r : rSeJ2000, v : [0, 0, 0], JT : JT});
     const rSeTod = coordModTod(osvSeMod, nutData).r;
 
-    const accMeTodTmp = accBody(rMeTod, aEarth, 1, Je, []);
-    const accSeTodTmp = accBody(rSeTod, aEarth, 1, Je, []);
+    const accMeTodTmp = accBody(rMeTod, constants.aEarth, 1, Je, []);
+    const accSeTodTmp = accBody(rSeTod, constants.aEarth, 1, Je, []);
 
     const accMeTod = vecMul(accMeTodTmp, -muE);
     const accSeTod = vecMul(accSeTodTmp, -muE);
@@ -196,12 +212,122 @@ function accOblateness(OSV, mu, libMoon, JT, Je, Jm, CSnm) {
 
     // 5. Accelerations from the interaction between Earth tides and the Moon.
     //[acc_me_tod_tides, acc_em_tod_tides] = acc_tides(r_me_tod, mu_e, mu_m);
+    const {accMeTodTides , accEmTodTides} = accTides(rMeTod, muE, muM);
+
 
     // Convert accelerations from Earth oblateness and tides to J2000 frame.
-    acc_me_j2000_obl = coordTodMod(acc_me_tod, nutData);
-    acc_se_j2000_obl = coordTodMod(acc_se_tod, nutData);
-    acc_em_j2000_obl = coordTodMod(acc_em_tod, nutData);
-    acc_es_j2000_obl = coordTodMod(acc_es_tod, nutData);
-    acc_me_j2000_tides = coordTodMod(acc_me_tod_tides, nutData);
-    acc_em_j2000_tides = coordTodMod(acc_em_tod_tides, nutData);    
+    const accMeJ2000Obl = coordModJ2000(
+        coordTodMod({r : accMeTod, v : [0, 0, 0], JT : JT}, nutData)).r;
+    const accSeJ2000Obl = coordModJ2000(
+        coordTodMod({r : accSeTod, v : [0, 0, 0], JT : JT}, nutData)).r;
+    const accEmJ2000Obl = coordModJ2000(
+        coordTodMod({r : accEmTod, v : [0, 0, 0], JT : JT}, nutData)).r;
+    const accEsJ2000Obl = coordModJ2000(
+        coordTodMod({r : accEsTod, v : [0, 0, 0], JT : JT}, nutData)).r;
+    const accMeJ2000Tides = coordModJ2000(
+        coordTodMod({r : accMeTodTides, v : [0, 0, 0], JT : JT}, nutData)).r;
+    const accEmJ2000Tides = coordModJ2000(
+        coordTodMod({r : accEmTodTides, v : [0, 0, 0], JT : JT}, nutData)).r;    
+
+    const accSJ2000 = vecSum(accSmJ2000Fig, accSeJ2000Obl);
+    const accEJ2000 = linComb([1, 1, 1, 1], 
+        [accEsJ2000Obl, accEmJ2000Fig, accEmJ2000Obl, accEmJ2000Tides]);
+    const accMJ2000 = linComb([1, 1, 1, 1], 
+        [accMsJ2000Fig, accMeJ2000Fig, accMeJ2000Obl, accMeJ2000Tides]);
+
+        /*
+    console.log('Moon Figure <-> Earth : Earth Acceleration');
+    console.log(accEmJ2000Fig);
+    console.log('Moon Figure <-> Earth : Moon Acceleration');
+    console.log(accMeJ2000Fig);
+    console.log('Moon Figure <-> Sun : Sun Acceleration');
+    console.log(accSmJ2000Fig);
+    console.log('Moon Figure <-> Sun : Moon Acceleration');
+    console.log(accMsJ2000Fig);
+    console.log('Earth Oblateness <-> Moon : Earth Acceleration');
+    console.log(accEmJ2000Obl);
+    console.log('Earth Oblateness <-> Moon : Moon Acceleration');
+    console.log(accMeJ2000Obl);
+    console.log('Earth Oblateness <-> Sun : Earth Acceleration');
+    console.log(accEsJ2000Obl);
+    console.log('Earth Oblateness <-> Sun : Sun Acceleration');
+    console.log(accSeJ2000Obl);
+    console.log('Earth Tides <-> Moon : Earth Acceleration');
+    console.log(accEmJ2000Tides);
+    console.log('Earth Tides <-> Moon : Moon Acceleration');
+    console.log(accMeJ2000Tides);        
+    */
+    
+    return {"Sun" : accSJ2000, "Earth" : accEJ2000, "Moon" : accMJ2000};
+}
+
+/**
+ * Compute the second derivatives for the Moon libration angles.
+ * 
+ * This method computes the expression in equation (3) of [1] or (8.6)-(8.8) 
+ * in [2].
+ * 
+ * The method fills the fields phi2, theta2 and psi2 (rad/d^2).
+ * 
+ * REFERENCES: 
+ *  [1] Newhall, Standish, Williams - DE 102: a numerically integrated
+ *  ephemeris of the Moon and planets spanning forty-four centuries,
+ *  Astronomy and Astrophysics, 125, 150-167, 1983.
+ *  [2] Urban, Seidelmann - Explanatory Supplement to the Astronomical
+ *  Almanac, 3rd edition, University Science Books, 2013.
+ *  [3] Steve Moshier, DE118i available at 
+ *  http://www.moshier.net/de118i-2.zip
+ *  [4] Ferrari et. al. - Geophysical Parameters of the Earth-Moon System,
+ *  Journal of Geophysical Research, 1980.
+ * 
+ * @param {*} librationState 
+ *      Libration state with the fields phi, phi1, theta, theta1, psi, psi1 
+ *      (rad or rad/day).
+ * @param {*} N 
+ *      Torque per unit mass in body coordinates.
+ */
+export function librationMoon(librationState, N) {
+    const phi    = librationState.phi;
+    const phi1   = librationState.phi1;
+    const theta  = librationState.theta;
+    const theta1 = librationState.theta1;
+    const psi    = librationState.psi;
+    const psi1   = librationState.psi1;
+    const inertiaMoon = constants.inertiaMoon;
+
+    // Angular velocity vector.
+    const omegaX = phi1 * Math.sin(theta) * Math.sin(psi) + theta1 * Math.cos(psi);
+    const omegaY = phi1 * Math.sin(theta) * Math.cos(psi) - theta1 * Math.sin(psi);
+    const omegaZ = phi1 * Math.cos(theta) + psi1;
+
+    // Differential equations for the angular velocity from Euler's equations.
+    const omegaX1 =  omegaY * omegaZ * (inertiaMoon.gammaL - inertiaMoon.betaL) 
+                  / (1 - inertiaMoon.betaL * inertiaMoon.gammaL) + N[0] / inertiaMoon.A;
+    const omegaY1 =  omegaZ * omegaX * inertiaMoon.betaL + N[1] / inertiaMoon.B;
+    const omegaZ1 = -omegaX * omegaY * inertiaMoon.gammaL + N[2] / inertiaMoon.C;
+
+    // Differential equations for the three Euler angles.
+    const phi2 = (omegaX1 * Math.sin(psi) + omegaY1 * Math.cos(psi) 
+               + theta1 * (psi1 - phi1 * Math.cos(theta))) / Math.sin(theta);
+    const theta2 = omegaX1 * Math.cos(psi) - omegaY1 * Math.sin(psi) 
+                 - phi1 * psi1 * Math.sin(theta);
+    const psi2 = omegaZ1 - phi2 * Math.cos(theta) + phi1 * theta1 * Math.sin(theta);
+
+    librationState.phi2 = phi2;
+    librationState.theta2 = theta2;
+    librationState.psi2 = psi2;
+}
+
+export function accTides(rMeTod, muE, muM) {
+    // Distance between Earth and the Moon.
+    const rEm = norm(rMeTod);
+    const accMoon =  vecMul(
+        [rMeTod[0] + constants.phase * rMeTod[1],
+         rMeTod[1] - constants.phase * rMeTod[0],
+         rMeTod[2]],     
+        - (3 * constants.love * muM) * (1 + muM/muE) 
+        * (constants.aEarth ** 5 / rEm ** 8));
+    const accEarth = vecMul(accMoon, -muM / muE);
+
+    return {accMeTodTides : accMoon, accEmTodTides : accEarth};
 }

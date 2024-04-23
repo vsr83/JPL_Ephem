@@ -1,16 +1,16 @@
 import {AssertionError, strict as assert} from 'assert';
 import { checkFloat, checkFloatArray} from './common.js';
-import { objectsInitial } from '../src/Integration.js';
+import { constants } from '../src/Constants.js';
 import { accPointMass, barycenter } from '../src/Relativity.js';
 import { norm, vecDiff} from '../src/MathUtils.js';
 
 describe('Relativity', function() {
     it('barycenter', function() {
+        const objectsInitial = constants.stateInitial.objects;
         const baryRel = barycenter(objectsInitial, true);
         const baryClassical = barycenter(objectsInitial, false);
 
-        const au = 149597870.691;
-        const mm = 1e-6 / au;
+        const mm = 1e-6 / constants.au;
         const mmPerYear = mm / 365.25;
 
         // The initial state is w.r.t. relativistic barycenter so we verify that the
@@ -27,6 +27,8 @@ describe('Relativity', function() {
     });
 
     it('accPointMass', function() {
+        const objectsInitial = constants.stateInitial.objects;
+
         const aNewtExp = 
         [
             [-0.000000007030480,  -0.000000002546937,  -0.000000001039335],
