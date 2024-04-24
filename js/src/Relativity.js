@@ -92,7 +92,7 @@ export function barycenter(state, relavistic) {
  *      acceleration.
  */
 export function accPointMass(state, relativistic) {
-    const numTargets = state.length;
+    const numTargets = state.objects.length;
     const c2 = constants.c2;
 
     // Compute distances and third powers of distances between every pair
@@ -100,11 +100,11 @@ export function accPointMass(state, relativistic) {
     const Rij = []
     const Rij3 = []
     for (let indTarget = 0; indTarget < numTargets; indTarget++) {
-        const target = state[indTarget];
+        const target = state.objects[indTarget];
         const RijRow = [];
         const RijRow3 = [];
         for (let indSource = 0; indSource < numTargets; indSource++) {
-            const source = state[indSource];
+            const source = state.objects[indSource];
             const distance = norm(vecDiff(target.r, source.r));
 
             RijRow.push(distance);
@@ -120,14 +120,14 @@ export function accPointMass(state, relativistic) {
 
     // Compute the Newtonian accelerations first.
     for (let indTarget = 0; indTarget < numTargets; indTarget++) {
-        const target = state[indTarget];
+        const target = state.objects[indTarget];
         let accSum = [0, 0, 0];
 
         for (let indSource = 0; indSource < numTargets; indSource++) {
             if (indSource == indTarget) {
                 continue;
             }
-            const source = state[indSource];
+            const source = state.objects[indSource];
 
             const rTargetSource = vecDiff(source.r, target.r);
             const accNewton = vecMul(rTargetSource, source.mu / Rij3[indSource][indTarget]);
@@ -139,7 +139,7 @@ export function accPointMass(state, relativistic) {
 
     // Compute relativistic accelerations.
     for (let indTarget = 0; indTarget < numTargets; indTarget++) {
-        const target = state[indTarget];
+        const target = state.objects[indTarget];
 
         target.accRel = [0, 0, 0];
         if (!relativistic) {
@@ -150,7 +150,7 @@ export function accPointMass(state, relativistic) {
             if (indSource == indTarget) {
                 continue;
             }
-            const source = state[indSource];
+            const source = state.objects[indSource];
 
             const rTargetSource = vecDiff(source.r, target.r);
             const vTargetSource = vecDiff(source.v, target.v);
@@ -160,7 +160,7 @@ export function accPointMass(state, relativistic) {
             // multiplication of the Newtonian acceleration.
             let newtonMult = 0.0;
             for (let indTarget2 = 0; indTarget2 < numTargets; indTarget2++) {
-                const target2 = state[indTarget2];
+                const target2 = state.objects[indTarget2];
 
                 if (indTarget != indTarget2) {
                     newtonMult -= (4 / c2) * target2.mu / Rij[indTarget][indTarget2];

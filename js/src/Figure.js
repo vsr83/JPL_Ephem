@@ -126,30 +126,45 @@ function coordFromBody(r, phi, theta, psi) {
 /**
  * Compute the accelerations due to Earth and Moon figure and tides.
  * 
+ * This method is heavily based on the oblate method in [2].
+ * 
+ * REFERENCES: 
+ * [1] Newhall, Standish, Williams - DE 102: a numerically integrated
+ * ephemeris of the Moon and planets spanning forty-four centuries,
+ * Astronomy and Astrophysics, 125, 150-167, 1983.
+ * [2] Steve Moshier, DE118i available at 
+ *  http://www.moshier.net/de118i-2.zip  
+ * 
  * @param {*} OSV 
- *      The fields r, v, mu for "Sun", "Earth", "Moon".
+ *      The fields r (au), v (au/d), mu (au^3/d^2) for "Sun", "Earth", "Moon".
  * @param {*} libMoon 
+ *      Libration state with the fields phi, phi1, theta, theta1, psi, psi1 
+ *      (rad or rad/day).
  * @param {*} JT 
- * @param {*} Je 
- * @param {*} Jm 
- * @param {*} CSnm 
- * @returns 
+ *      Julian time.
+ * @returns Object field accelerations (au/d^2, 3) for "Sun", "Earth", "Moon".
  */
-export function accOblateness(OSV, libMoon, JT, Je, Jm, CSnm) {
-    const rS = OSV["Sun"].r;
-    const rE = OSV["Earth"].r;
-    const rM = OSV["Moon"].r;
-    const vS = OSV["Sun"].v;
-    const vE = OSV["Earth"].v;
-    const vM = OSV["Moon"].v;
-    const muS = OSV["Sun"].mu;
-    const muE = OSV["Earth"].mu;
-    const muM = OSV["Moon"].mu;
+export function accOblateness(state) {
+    const osvSun = state.objects[state.objectIndices["Sun"]];
+    const osvEarth = state.objects[state.objectIndices["Earth"]];
+    const osvMoon = state.objects[state.objectIndices["Moon"]];
+
+    const rS = osvSun.r;
+    const rE = osvEarth.r;
+    const rM = osvMoon.r;
+    const muS = osvSun.mu;
+    const muE = osvEarth.mu;
+    const muM = osvMoon.mu;
+    const Je = constants.Je;
+    const Jm = constants.Jm;
+    const CSnm = constants.CSnm;
 
     // Parse libration angles.
+    const libMoon = state.libration;
     const phi    = libMoon.phi;
     const theta  = libMoon.theta;
     const psi    = libMoon.psi;
+    const JT = state.JT;
 
     const nutData = nutationTerms((JT - 2451545.0) / 36525.0);
 
@@ -184,7 +199,7 @@ export function accOblateness(OSV, libMoon, JT, Je, Jm, CSnm) {
 
     // Compute the total torque on the Moon and the angular accelerations.
     const T = linComb([muE, muS], [Tearth, Tsun]);
-    librationMoon(libMoon, T);
+    librationMoon(state.libration, T);
 
     // 4. Oblateness of the Earth.
 
@@ -257,8 +272,9 @@ export function accOblateness(OSV, libMoon, JT, Je, Jm, CSnm) {
     console.log('Earth Tides <-> Moon : Moon Acceleration');
     console.log(accMeJ2000Tides);        
     */
-    
-    return {"Sun" : accSJ2000, "Earth" : accEJ2000, "Moon" : accMJ2000};
+    osvSun.accObl   = accSJ2000;
+    osvEarth.accObl = accEJ2000;
+    osvMoon.accObl  = accMJ2000;
 }
 
 /**
@@ -318,6 +334,24 @@ export function librationMoon(librationState, N) {
     librationState.psi2 = psi2;
 }
 
+/**
+ * Compute acceleration of the Moon and the Earth due to tides.
+ * 
+ * [1] Newhall, Standish, Williams - DE 102: a numerically integrated
+ * ephemeris of the Moon and planets spanning forty-four centuries,
+ * Astronomy and Astrophysics, 125, 150-167, 1983.
+ * [2] Steve Moshier, DE118i available at 
+ * http://www.moshier.net/de118i-2.zip
+ * 
+ * @param {*} rMeTod 
+ *      The position of the Moon w.r.t. Earth in the ToD frame (au, 3)
+ * @param {*} muE 
+ *      Standard gravitational parameter (au^3/d^2) for Earth.
+ * @param {*} muM 
+ *      Standard gravitational parameter (au^3/d^2) for Moon.
+ * @returns Objects with fields accMeTodTides and accEmTodTides for the 
+ *      accelerations of the Moon and the Earth (au/d^2, 3).
+ */
 export function accTides(rMeTod, muE, muM) {
     // Distance between Earth and the Moon.
     const rEm = norm(rMeTod);

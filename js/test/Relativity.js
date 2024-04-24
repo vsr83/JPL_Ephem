@@ -57,7 +57,7 @@ describe('Relativity', function() {
            [-0.000000250602345e-9,   0.000000058330022e-9,  0.000000094357851e-9]
         ];
 
-        accPointMass(objectsInitial, true);
+        accPointMass({objects : objectsInitial}, true);
 
         for (let indTarget = 0; indTarget < objectsInitial.length; indTarget++) {
             const target = objectsInitial[indTarget];
