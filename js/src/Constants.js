@@ -155,6 +155,7 @@ const objectIndices = {
 
 const stateInitial = {
     JT : JTepoch,
+    t : 0,
     objects : objectsInitial,
     objectIndices : objectIndices,
     libration : librationInitial

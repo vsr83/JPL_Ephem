@@ -164,7 +164,7 @@ export function accOblateness(state) {
     const phi    = libMoon.phi;
     const theta  = libMoon.theta;
     const psi    = libMoon.psi;
-    const JT = state.JT;
+    const JT = state.JT + state.t;
 
     const nutData = nutationTerms((JT - 2451545.0) / 36525.0);
 
@@ -228,7 +228,6 @@ export function accOblateness(state) {
     // 5. Accelerations from the interaction between Earth tides and the Moon.
     //[acc_me_tod_tides, acc_em_tod_tides] = acc_tides(r_me_tod, mu_e, mu_m);
     const {accMeTodTides , accEmTodTides} = accTides(rMeTod, muE, muM);
-
 
     // Convert accelerations from Earth oblateness and tides to J2000 frame.
     const accMeJ2000Obl = coordModJ2000(

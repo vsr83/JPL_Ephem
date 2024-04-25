@@ -122,9 +122,19 @@ export function stateToDof(state) {
     return dof;
 }
 
+/**
+ * Compute the vector f in the equation y' = f(y, t).
+ * 
+ * @param {*} tIn 
+ *      Time after epoch.
+ * @param {*} yNew 
+ *      Degrees of freedom.
+ * @param {*} JT 
+ *      Julian time.
+ * @returns 
+ */
 export function funcLibration(tIn, yNew, JT) {
-    let state = dofToState(yNew, constants.stateInitial, JT);
-
+    let state = dofToState(yNew, tIn, constants.stateInitial, JT);    
     accPointMass(state, true);
     accOblateness(state);
 
@@ -160,7 +170,18 @@ export function funcLibration(tIn, yNew, JT) {
     return acc;
 }
 
-export function dofToState(dof, stateOld, JT) {
+/**
+ * Convert degrees of freedom to a state.
+ * 
+ * @param {*} dof 
+ *      The degrees of freedom.
+ * @param {*} tIn 
+ *      Time after epoch.
+ * @param {*} stateOld 
+ *      Old state object used to fill remaining fields.
+ * @returns The new state.
+ */
+export function dofToState(dof, tIn, stateOld) {
     const objectsOld = stateOld.objects;
     const numObjects = objectsOld.length;
 
@@ -184,6 +205,6 @@ export function dofToState(dof, stateOld, JT) {
         objects.push({name : name, mu : mu, r : r, v : v});
     }
 
-    return {JT : JT, objects : objects, objectIndices : stateOld.objectIndices,
+    return {JT : stateOld.JT, t : tIn, objects : objects, objectIndices : stateOld.objectIndices,
          libration : libration};
 }

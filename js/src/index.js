@@ -9,7 +9,10 @@ import {coordEclEq, coordEqEcl, coordJ2000Mod, coordModJ2000, coordModTod, coord
 import { correlationTaiUt1, correlationUt1Tai, correlationTdbUt1, correlationUt1Tdb, correlationUtcUt1, correlationUt1Utc, polarMotion } from './TimeCorrelation.js';
 import { rotateCart1d, rotateCart2d, rotateCart3d } from './Rotations.js';
 import { legendreAssoc, legendreAssocd, legendreValue, legendreDeriv } from './Legendre.js';
+import { accBody, accOblateness, librationMoon } from './Figure.js';
+import { barycenter, accPointMass } from './Relativity.js';
 import { constants } from './Constants.js';
+import { runge4, adams8, stateToDof, dofToState, funcLibration } from './Integration.js';
 
 export {sind, cosd, tand, dot, cross, norm, vecSum, vecDiff, vecMul, deg2Rad, rad2Deg, asind, acosd, 
     atan2d, atand, linComb};
@@ -22,4 +25,7 @@ export {coordEclEq, coordEqEcl, coordJ2000Mod, coordModJ2000, coordModTod, coord
 export {correlationTaiUt1, correlationUt1Tai, correlationTdbUt1, correlationUt1Tdb, correlationUtcUt1, correlationUt1Utc, polarMotion};
 export {rotateCart1d, rotateCart2d, rotateCart3d};
 export {legendreAssoc, legendreAssocd, legendreValue, legendreDeriv};
+export {accBody, accOblateness, librationMoon};
+export {barycenter, accPointMass};
+export {runge4, adams8, stateToDof, dofToState, funcLibration};
 export {constants};

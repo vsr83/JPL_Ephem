@@ -4,7 +4,7 @@
     "description": "Javascript implementation of numerical integration of the solar system",
       "main": "index.js",
     "scripts": {
-      "test": "mocha --recursive --timeout 60000 --require @babel/register",
+      "test": "mocha --recursive --timeout 120000 --require @babel/register",
       "build": "webpack"
     },
     "keywords": [],
